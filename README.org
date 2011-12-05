@@ -1,0 +1,54 @@
+
+* What is wagner?
+  =wagner= is a motif-discovery tool.  It really likes motifs, hence
+  "wagner".
+
+* How does wagner work?
+  =wagner= operates on (unaligned) collections of sequences that are
+  suspected to harbor common motif elements.  Additionally, it
+  requires several parameters: the number of elements present in the
+  collection =n=, the length of the element =L= (in bp), and the
+  maximum allowable overlap =m= (bp).  The desired output is a set of
+  =n= motifs, along with their instantiations in each sequence.  Not
+  every sequence need contain every motif.
+
+**  algorithm sketch:  
+
+*** Initialize motifs randomly.
+
+*** Compute for each sequence the distance between the ith and jth
+    motif elements (measuring from left endpoints, say).
+
+*** Pick a sequence S.
+
+*** Removing S from the collection, compute a PSSM for each motif.
+
+*** Reassign the motif elements in S.
+    
+    This can be done in several ways.  The most natural is to: 
+
+**** choose an anchor motif according to the response profile on S.
+     (We may also decide to make that choice non-deterministically
+     according to the maxima of the response profiles over all PSSMs.)
+     
+
+**** Choose another motif.
+     When we assign the next motif element, we must consider not only
+     the response profile of the new motif over S, but also its
+     relationship to existing motif elements.  Since we have a
+     distance matrix for each sequence, we might take the mean and std
+     dev of each component and use those to compute a z-score for the
+     proposed placement of the n+1th motif element on S.  The PSSM and
+     the distance score don't have any kind of natural priority, so
+     that unfortunately introduces another variable which specifies
+     the relative importance of each.
+
+**** Repeat until all motifs have been assigned
+
+* Validation
+  We'll begin by attempting to identify the lexA motif in E. coli.
+  LexA is highly conserved, so we at least ought to be able to
+  identify that.  Failure to identify lexA under almost any choice of
+  parameter will surely suggest an implementation error or total
+  failure of the model.
+  
