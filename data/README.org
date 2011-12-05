@@ -1,0 +1,2 @@
+This file contains various data sets for testing/validation with
+wagner.  Git probably shouldn't track these.  
