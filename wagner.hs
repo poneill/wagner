@@ -2,6 +2,7 @@ import Data.List
 import Data.Char (isSpace)
 import System.IO
 import System.Random
+import Control.Monad (replicateM)
 
 type DistanceMatrix = [[Int]]
 type Sequence = String
@@ -39,21 +40,21 @@ makePSSM motif bgProbs = map (f . columnProbs) columns
           f column = zipWith (\c bg -> log2 (c / bg)) column bgProbs
 
 seedMotif :: Sequences -> IO MotifIndex
-seedMotif seqs = sequence $ [randomRIO (0,length seq) | seq <- seqs]
+seedMotif seqs = sequence [randomRIO (0,length seq) | seq <- seqs]
 
 seedMotifs :: Sequences -> IO [MotifIndex]
-seedMotifs seqs = sequence $ replicate numMotifs (seedMotif seqs)
+seedMotifs = replicateM numMotifs . seedMotif
 
 distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
 --Return a distance matrix for the nth sequence
 distanceMatrix n mis = [[i - j | i <- nthIndices] | j <- nthIndices]
-    where nthIndices = (transpose mis) !! n
+    where nthIndices = transpose mis !! n
 
 --rescoreSequence :: Sequence -> [MotifIndex] -> [MotifIndex]
 
   
 recoverMotif :: MotifIndex -> Sequences -> Motif
-recoverMotif mi seqs = zipWith (\m s -> (take motifLength . drop m) s) mi seqs
+recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
 readSequences :: FilePath -> IO Sequences
 readSequences filePath = do
