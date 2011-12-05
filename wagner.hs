@@ -43,7 +43,14 @@ seedMotif seqs = sequence $ [randomRIO (0,length seq) | seq <- seqs]
 
 seedMotifs :: Sequences -> IO [MotifIndex]
 seedMotifs seqs = sequence $ replicate numMotifs (seedMotif seqs)
-                  
+
+distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
+--Return a distance matrix for the nth sequence
+distanceMatrix n mis = [[i - j | i <- nthIndices] | j <- nthIndices]
+    where nthIndices = (transpose mis) !! n
+
+--rescoreSequence :: Sequence -> [MotifIndex] -> [MotifIndex]
+
   
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif mi seqs = zipWith (\m s -> (take motifLength . drop m) s) mi seqs
