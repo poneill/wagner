@@ -1,7 +1,6 @@
 
 * What is wagner?
-  =wagner= is a motif-discovery tool.  It really likes motifs, hence
-  "wagner".
+  =wagner= is a motif-discovery tool.  It's really into motifs.
 
 * How does wagner work?
   =wagner= operates on (unaligned) collections of sequences that are
