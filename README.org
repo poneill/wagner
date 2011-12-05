@@ -16,8 +16,9 @@
 
 *** Initialize motifs randomly.
 
-*** Compute for each sequence the distance between the ith and jth
-    motif elements (measuring from left endpoints, say).
+*** Compute a distance matrix for each sequence
+    Contains the distance between the ith and jth motif elements
+    (measuring from left endpoints, say).
 
 *** Pick a sequence S.
 
