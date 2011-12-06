@@ -21,6 +21,10 @@ epsilon = 1e-10
 numMotifs = 3
 motifLength = 6
 
+indexOf :: Char -> Int
+indexOf base = unpack $ lookup base (zip delta [0..3])
+  where unpack (Just x) = x
+
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
@@ -50,9 +54,18 @@ distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
 distanceMatrix n mis = [[i - j | i <- nthIndices] | j <- nthIndices]
     where nthIndices = transpose mis !! n
 
---rescoreSequence :: Sequence -> [MotifIndex] -> [MotifIndex]
+--rescoreSequence :: Sequence -> [MotifIndex] -> MotifIndex
+--Accepts a sequence and its LOO MotifIndex, returns a MotifIndex for sequence
+--rescoreSequence seq mis 
 
-  
+score :: PSSM -> Sequence -> Float
+score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
+
+scoreSequence :: PSSM -> Sequence -> [Float] --scan PSSM over sequence
+scoreSequence pssm seq = map (score pssm) longEnoughs
+  where longEnoughs = takeWhile (\tail -> length tail >= m) (tails seq)
+        m = length pssm
+                                  
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
