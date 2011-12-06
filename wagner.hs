@@ -20,7 +20,7 @@ delta = "ACGT"
 epsilon = 1e-10
 numMotifs = 3
 motifLength = 6
-
+uniformProbs = replicate 4 (0.25)
 indexOf :: Char -> Int
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
@@ -28,6 +28,9 @@ indexOf base = unpack $ lookup base (zip delta [0..3])
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
+argMax :: (Ord b) => (a -> b) -> [a] -> a
+argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
+  
 trim      :: String -> String --stole this from wikipedia for portability
 trim      = f . f
     where f = reverse . dropWhile isSpace
@@ -54,18 +57,33 @@ distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
 distanceMatrix n mis = [[i - j | i <- nthIndices] | j <- nthIndices]
     where nthIndices = transpose mis !! n
 
---rescoreSequence :: Sequence -> [MotifIndex] -> MotifIndex
+rescoreSequence' :: Sequence -> Sequences -> [MotifIndex] -> MotifIndex
 --Accepts a sequence and its LOO MotifIndex, returns a MotifIndex for sequence
---rescoreSequence seq mis 
+rescoreSequence' seq seqs mis 
+  | length mis == numMotifs = [maxResponseOverSeq pssm seq]
+    where pssm = maxPSSMoverSeq pssms seq
+          pssms = map (\mi -> recoverPSSM mi seqs) mis
 
 score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
+
+maxResponseOverSeq :: PSSM -> Sequence -> Int
+maxResponseOverSeq pssm seq = argMax (\n -> maxOverSequence pssm (drop n seq)) [0..]
+
+maxPSSMoverSeq :: [PSSM] -> Sequence -> PSSM
+maxPSSMoverSeq pssms seq = argMax (\p -> maxOverSequence p seq) pssms
 
 scoreSequence :: PSSM -> Sequence -> [Float] --scan PSSM over sequence
 scoreSequence pssm seq = map (score pssm) longEnoughs
   where longEnoughs = takeWhile (\tail -> length tail >= m) (tails seq)
         m = length pssm
-                                  
+
+maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
+maxOverSequence = maximum . scoreSequence
+
+recoverPSSM :: MotifIndex -> Sequences -> PSSM
+recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
+
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
