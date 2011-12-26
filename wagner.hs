@@ -1,7 +1,7 @@
 import Data.List
 import Data.Char (isSpace)
 import System.IO
-import System.Random
+import System.Random hiding (split)
 import Control.Monad (replicateM)
 
 type DistanceMatrix = [[Int]]
@@ -18,7 +18,7 @@ type MotifIndex = [Int] --Records left endpoints of occurrence of
 
 delta = "ACGT"
 epsilon = 1e-10
-numMotifs = 3
+numMotifs = 1
 motifLength = 6
 uniformProbs = replicate 4 0.25
 indexOf :: Char -> Int
@@ -87,8 +87,22 @@ recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
+selectSequence :: Sequences -> IO (Sequence, Sequences)
+selectSequence seqs = do {
+  i <- randomRIO (0, length seqs);
+  return (seqs!!i, removeNth seqs i)
+  }
+  
 readSequences :: FilePath -> IO Sequences
 readSequences filePath = do
   content <- readFile filePath
-  let ls = map trim (lines content)
-  return (filter ((/= '>') . head) ls)
+  return (sanitizeFASTA content)
+  
+sanitizeFASTA :: String -> Sequences
+sanitizeFASTA content = map (filter (/= ',')) relevantLines
+  where ls = map trim (lines content)
+        relevantLines = (filter ((/= '>') . head) ls)
+        
+removeNth :: [a] -> Int -> [a]
+removeNth xs n = ys ++ (tail zs)
+  where (ys,zs) = splitAt n xs   
