@@ -14,7 +14,7 @@ type Sequences = [Sequence] --the idea here is that Sequences are just
 type MotifIndex = [Int] --Records left endpoints of occurrence of
                         --motif in each sequence.  Can be used to
                         --recover Motif from Sequences
-
+type MotifIndices = [MotifIndex]
 
 delta = "ACGT"
 epsilon = 1e-10
@@ -49,20 +49,19 @@ makePSSM motif bgProbs = map (f . columnProbs) columns
 seedMotif :: Sequences -> IO MotifIndex
 seedMotif seqs = sequence [randomRIO (0,length seq) | seq <- seqs]
 
-seedMotifs :: Sequences -> IO [MotifIndex]
-seedMotifs = replicateM numMotifs . seedMotif
+seedMotifs :: Sequences -> IO MotifIndices
+seedMotifs  = (fmap transpose) . (replicateM numMotifs . seedMotif)
 
-distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
+distanceMatrix :: Int -> MotifIndices -> DistanceMatrix
 --Return a distance matrix for the nth sequence
 distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = transpose mis !! n
 
-rescoreSequence' :: Sequence -> Sequences -> [MotifIndex] -> MotifIndex
+rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
 --Accepts a sequence and its LOO MotifIndex, returns a MotifIndex for sequence
-rescoreSequence' seq seqs mis 
-  | length mis == numMotifs = [maxResponseOverSeq pssm seq]
-    where pssm = maxPSSMoverSeq pssms seq
-          pssms = map (`recoverPSSM` seqs) mis
+rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq]
+  where pssm = maxPSSMoverSeq pssms seq
+        pssms = map (`recoverPSSM` seqs) mis
 
 score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
@@ -78,11 +77,29 @@ scoreSequence pssm seq = map (score pssm) longEnoughs
   where longEnoughs = takeWhile (\tail -> length tail >= m) (tails seq)
         m = length pssm
 
+updateAlignment :: Sequences -> MotifIndices -> IO MotifIndices
+updateAlignment seqs mis = do { i <- randomRIO (0, length mis)
+                              ; return (updateIthMI seqs mis i)
+                              }
+                           
+
+updateIthMI :: Sequences -> MotifIndices -> Int -> MotifIndices
+updateIthMI seqs mis i = (take (i - 1) mis) ++ [mi'] ++ (drop i mis)
+    where seq = seqs !! i
+          seqsRest = removeNth seqs i
+          mi = mis !! i
+          misRest = removeNth mis i  
+          mi' = rescoreSequence seq seqs misRest
+            
+            
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
 
 recoverPSSM :: MotifIndex -> Sequences -> PSSM
 recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
+
+recoverPSSMs :: MotifIndices -> Sequences -> [PSSM]
+recoverPSSMs mis seqs = map (\mi -> recoverPSSM mi seqs) mis
 
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
