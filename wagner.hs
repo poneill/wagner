@@ -31,9 +31,9 @@ log2 = logBase 2
 argMax :: (Ord b) => (a -> b) -> [a] -> a
 argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
   
-trim      :: String -> String --stole this from wikipedia for portability
-trim      = f . f
-    where f = reverse . dropWhile isSpace
+trim :: String -> String --stole this from wikipedia for portability
+trim = f . f
+  where f = reverse . dropWhile isSpace
 
 columnProbs :: Sequence -> [Float]
 columnProbs column = [epsilon + fromIntegral (numBases base column) / n 
