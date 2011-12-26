@@ -20,7 +20,7 @@ delta = "ACGT"
 epsilon = 1e-10
 numMotifs = 3
 motifLength = 6
-uniformProbs = replicate 4 (0.25)
+uniformProbs = replicate 4 0.25
 indexOf :: Char -> Int
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
@@ -29,7 +29,7 @@ log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
 argMax :: (Ord b) => (a -> b) -> [a] -> a
-argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
+argMax f = foldl1 (\x x' -> if f x' > f x then x' else x) 
   
 trim :: String -> String --stole this from wikipedia for portability
 trim = f . f
@@ -54,7 +54,7 @@ seedMotifs = replicateM numMotifs . seedMotif
 
 distanceMatrix :: Int -> [MotifIndex] -> DistanceMatrix
 --Return a distance matrix for the nth sequence
-distanceMatrix n mis = [[i - j | i <- nthIndices] | j <- nthIndices]
+distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = transpose mis !! n
 
 rescoreSequence' :: Sequence -> Sequences -> [MotifIndex] -> MotifIndex
@@ -62,7 +62,7 @@ rescoreSequence' :: Sequence -> Sequences -> [MotifIndex] -> MotifIndex
 rescoreSequence' seq seqs mis 
   | length mis == numMotifs = [maxResponseOverSeq pssm seq]
     where pssm = maxPSSMoverSeq pssms seq
-          pssms = map (\mi -> recoverPSSM mi seqs) mis
+          pssms = map (`recoverPSSM` seqs) mis
 
 score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
@@ -71,7 +71,7 @@ maxResponseOverSeq :: PSSM -> Sequence -> Int
 maxResponseOverSeq pssm seq = argMax (\n -> maxOverSequence pssm (drop n seq)) [0..]
 
 maxPSSMoverSeq :: [PSSM] -> Sequence -> PSSM
-maxPSSMoverSeq pssms seq = argMax (\p -> maxOverSequence p seq) pssms
+maxPSSMoverSeq pssms seq = argMax (`maxOverSequence` seq) pssms
 
 scoreSequence :: PSSM -> Sequence -> [Float] --scan PSSM over sequence
 scoreSequence pssm seq = map (score pssm) longEnoughs
@@ -79,7 +79,7 @@ scoreSequence pssm seq = map (score pssm) longEnoughs
         m = length pssm
 
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
-maxOverSequence = maximum . scoreSequence
+maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
 
 recoverPSSM :: MotifIndex -> Sequences -> PSSM
 recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
