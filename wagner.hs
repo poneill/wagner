@@ -16,8 +16,10 @@ type MotifIndex = [Int] --Records left endpoints of occurrence of
                         --recover Motif from Sequences
 type MotifIndices = [MotifIndex]
 
-data Gestalt = Gestalt Sequences MotifIndices
-               deriving Show
+data Gestalt = Gestalt { sequences :: Sequences 
+                       , motifIndices :: MotifIndices
+                       }
+             deriving Show
   
 delta = "ACGT"
 epsilon = 1e-10
@@ -53,7 +55,7 @@ seedMotif :: Sequences -> IO MotifIndex
 seedMotif seqs = sequence [randomRIO (0,length seq) | seq <- seqs]
 
 seedMotifs :: Sequences -> IO MotifIndices
-seedMotifs  = (fmap transpose) . (replicateM numMotifs . seedMotif)
+seedMotifs  = fmap transpose . replicateM numMotifs . seedMotif
 
 distanceMatrix :: Int -> MotifIndices -> DistanceMatrix
 --Return a distance matrix for the nth sequence
@@ -80,20 +82,25 @@ scoreSequence pssm seq = map (score pssm) longEnoughs
   where longEnoughs = takeWhile (\tail -> length tail >= m) (tails seq)
         m = length pssm
 
-updateAlignment :: Sequences -> MotifIndices -> IO MotifIndices
-updateAlignment seqs mis = do { i <- randomRIO (0, length mis)
-                              ; return (updateIthMI seqs mis i)
+updateAlignment :: Gestalt -> IO Gestalt
+updateAlignment gestalt = do { let seqs = sequences gestalt
+                             ; let mis = motifIndices gestalt 
+                             ; i <- randomRIO (0, length mis)
+                             ; return (updateIthSequence gestalt i)
                               }
                            
 
-updateIthMI :: Sequences -> MotifIndices -> Int -> MotifIndices
-updateIthMI seqs mis i = (take (i - 1) mis) ++ [mi'] ++ (drop i mis)
-    where seq = seqs !! i
-          seqsRest = removeNth seqs i
-          mi = mis !! i
-          misRest = removeNth mis i  
-          mi' = rescoreSequence seq seqs misRest
-
+updateIthSequence :: Gestalt -> Int -> Gestalt
+updateIthSequence gestalt i = Gestalt seqs mis'
+    where 
+      seqs = sequences gestalt
+      mis = motifIndices gestalt
+      seq = seqs !! i
+      seqsRest = removeNth seqs i
+      mi = mis !! i
+      misRest = removeNth mis i  
+      mi' = rescoreSequence seq seqs misRest
+      mis' = take (i - 1) mis ++ [mi'] ++ drop i mis
             
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
@@ -101,8 +108,10 @@ maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
 recoverPSSM :: MotifIndex -> Sequences -> PSSM
 recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
 
-recoverPSSMs :: MotifIndices -> Sequences -> [PSSM]
-recoverPSSMs mis seqs = map (\mi -> recoverPSSM mi seqs) mis
+recoverPSSMs :: Gestalt -> [PSSM]
+recoverPSSMs gestalt = map (`recoverPSSM` seqs) mis
+  where mis = motifIndices gestalt
+        seqs = sequences gestalt
 
 recoverMotif :: MotifIndex -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
@@ -121,8 +130,8 @@ readSequences filePath = do
 sanitizeFASTA :: String -> Sequences
 sanitizeFASTA content = map (filter (/= ',')) relevantLines
   where ls = map trim (lines content)
-        relevantLines = (filter ((/= '>') . head) ls)
+        relevantLines = filter ((/= '>') . head) ls
         
 removeNth :: [a] -> Int -> [a]
-removeNth xs n = ys ++ (tail zs)
+removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
