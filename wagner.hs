@@ -16,6 +16,9 @@ type MotifIndex = [Int] --Records left endpoints of occurrence of
                         --recover Motif from Sequences
 type MotifIndices = [MotifIndex]
 
+data Gestalt = Gestalt Sequences MotifIndices
+               deriving Show
+  
 delta = "ACGT"
 epsilon = 1e-10
 numMotifs = 1
@@ -58,7 +61,7 @@ distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = transpose mis !! n
 
 rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
---Accepts a sequence and its LOO MotifIndex, returns a MotifIndex for sequence
+--Accepts a sequence and its LOO MotifIndices, returns a MotifIndex for sequence
 rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq]
   where pssm = maxPSSMoverSeq pssms seq
         pssms = map (`recoverPSSM` seqs) mis
@@ -90,7 +93,7 @@ updateIthMI seqs mis i = (take (i - 1) mis) ++ [mi'] ++ (drop i mis)
           mi = mis !! i
           misRest = removeNth mis i  
           mi' = rescoreSequence seq seqs misRest
-            
+
             
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
