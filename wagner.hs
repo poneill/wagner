@@ -11,11 +11,11 @@ type Motif = [Sequence]
 type Sequences = [Sequence] --the idea here is that Sequences are just
                             --raw input, whereas a Motif is
                             --semantically significant alignment
-type MotifIndex = [Int] --Records left endpoints of occurrence of
+type MotifIndex = [Index] --Records left endpoints of occurrence of
                         --motif in each sequence.  Can be used to
                         --recover Motif from Sequences
 type MotifIndices = [MotifIndex]
-
+type Index = Int
 data Gestalt = Gestalt { sequences :: Sequences 
                        , motifIndices :: MotifIndices
                        }
@@ -26,7 +26,7 @@ epsilon = 1e-10
 numMotifs = 1
 motifLength = 6
 uniformProbs = replicate 4 0.25
-indexOf :: Char -> Int
+indexOf :: Char -> Index
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
 
@@ -71,7 +71,7 @@ rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq]
 score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
 
-maxResponseOverSeq :: PSSM -> Sequence -> Int
+maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = argMax (\n -> maxOverSequence pssm (drop n seq)) [0..]
 
 maxPSSMoverSeq :: [PSSM] -> Sequence -> PSSM
@@ -135,3 +135,8 @@ sanitizeFASTA content = map (filter (/= ',')) relevantLines
 removeNth :: [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
+
+main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
+          ; mis <- seedMotifs seqs
+          ; let gestalt = Gestalt seqs mis 
+          }
