@@ -24,7 +24,7 @@ data Gestalt = Gestalt { sequences :: Sequences
 delta = "ACGT"
 epsilon = 1e-10
 numMotifs = 1
-motifLength = 6
+motifLength = 16
 uniformProbs = replicate 4 0.25
 indexOf :: Char -> Index
 indexOf base = unpack $ lookup base (zip delta [0..3])
@@ -72,7 +72,8 @@ score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
 
 maxResponseOverSeq :: PSSM -> Sequence -> Index
-maxResponseOverSeq pssm seq = argMax (\n -> maxOverSequence pssm (drop n seq)) [0..]
+maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
+  where scores = scoreSequence pssm seq
 
 maxPSSMoverSeq :: [PSSM] -> Sequence -> PSSM
 maxPSSMoverSeq pssms seq = argMax (`maxOverSequence` seq) pssms
@@ -138,5 +139,5 @@ removeNth xs n = ys ++ tail zs
 
 main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
           ; mis <- seedMotifs seqs
-          ; let gestalt = Gestalt seqs mis 
+          ; return (Gestalt seqs mis)
           }
