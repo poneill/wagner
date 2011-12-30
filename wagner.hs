@@ -14,6 +14,7 @@ type Sequences = [Sequence] --the idea here is that Sequences are just
 type MotifIndex = [Index] --Records left endpoints of occurrence of
                         --motif in each sequence.  Can be used to
                         --recover Motif from Sequences
+type MotifIndexCol = [Index]
 type MotifIndices = [MotifIndex]
 type Index = Int
 data Gestalt = Gestalt { sequences :: Sequences 
@@ -63,13 +64,13 @@ seedMotifs  = fmap transpose . replicateM numMotifs . seedMotif
 distanceMatrix :: Int -> MotifIndices -> DistanceMatrix
 --Return a distance matrix for the nth sequence
 distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
-    where nthIndices = transpose mis !! n
+    where nthIndices = mis !! n
 
 rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
 --Accepts a sequence and its LOO MotifIndices, returns a MotifIndex for sequence
-rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq]
-  where pssm = maxPSSMoverSeq pssms seq
-        pssms = map (`recoverPSSM` seqs) mis
+--by greedily assigning tfs in sequential order.
+rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq | pssm <- pssms]
+  where pssms = map (`recoverPSSM` seqs) $ transpose mis
 
 score :: PSSM -> Sequence -> Float
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
@@ -109,15 +110,15 @@ updateIthSequence gestalt i = Gestalt seqs mis'
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
 
-recoverPSSM :: MotifIndex -> Sequences -> PSSM
-recoverPSSM mi seqs = makePSSM (recoverMotif mi seqs) uniformProbs
+recoverPSSM :: MotifIndexCol -> Sequences -> PSSM
+recoverPSSM mic seqs = makePSSM (recoverMotif mic seqs) uniformProbs
 
 recoverPSSMs :: Gestalt -> [PSSM]
-recoverPSSMs gestalt = map (`recoverPSSM` seqs) mis
-  where mis = motifIndices gestalt
+recoverPSSMs gestalt = map (`recoverPSSM` seqs) mics
+  where mics = transpose $ motifIndices gestalt
         seqs = sequences gestalt
 
-recoverMotif :: MotifIndex -> Sequences -> Motif
+recoverMotif :: MotifIndexCol -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
 selectSequence :: Sequences -> IO (Sequence, Sequences)
