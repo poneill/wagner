@@ -86,7 +86,7 @@ scoreSequence pssm seq = map (score pssm) longEnoughs
 updateAlignment :: Gestalt -> IO Gestalt
 updateAlignment gestalt = do { let seqs = sequences gestalt
                              ; let mis = motifIndices gestalt 
-                             ; i <- randomRIO (0, length mis)
+                             ; i <- randomRIO (0, length mis - 1)
                              ; return (updateIthSequence gestalt i)
                               }
                            
@@ -101,7 +101,7 @@ updateIthSequence gestalt i = Gestalt seqs mis'
       mi = mis !! i
       misRest = removeNth mis i  
       mi' = rescoreSequence seq seqs misRest
-      mis' = take (i - 1) mis ++ [mi'] ++ drop i mis
+      mis' = take i mis ++ [mi'] ++ drop (i + 1) mis
             
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
@@ -136,6 +136,9 @@ sanitizeFASTA content = map (filter (/= ',')) relevantLines
 removeNth :: [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
+
+iterateN :: Int -> (a -> a) -> a -> a
+iterateN n f x = head . drop n $ iterate f x
 
 main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
           ; mis <- seedMotifs seqs
