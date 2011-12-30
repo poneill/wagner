@@ -131,7 +131,7 @@ separate :: Index -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
 
 deparate :: Index -> a -> [a] -> [a]
-deparate i a as = (take i as) ++ [a] ++ (drop (i + 1) as)
+deparate i a as = (take i as) ++ [a] ++ (drop i as)
   
 updateIthSequence :: Gestalt -> Int -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
@@ -187,7 +187,11 @@ updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = und
 updateSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
 
-
+ivanSweep :: Gestalt -> IO Gestalt
+ivanSweep g | trace ("ivanSweep"++ " " ++ show (motifIndices g)) False = undefined
+ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
+  where is = (range . length . motifIndices) g
+        
 --springConstant :: MotifIndices -> Index -> Index -> 
 springConstant mis i j k = 1 / (variance $ map fromIntegral $ zipWith (-) is js)
   where is = selectColumn mis' i
