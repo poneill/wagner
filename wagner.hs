@@ -3,7 +3,7 @@ import Data.Char (isSpace)
 import System.IO
 import System.Random hiding (split)
 import Control.Monad (replicateM)
-
+import Debug.Trace
 type DistanceMatrix = [[Int]]
 type Sequence = String
 type PSSM = [[Float]]
@@ -23,12 +23,15 @@ data Gestalt = Gestalt { sequences :: Sequences
   
 delta = "ACGT"
 epsilon = 1e-10
-numMotifs = 1
+numMotifs = 3
 motifLength = 16
 uniformProbs = replicate 4 0.25
 indexOf :: Char -> Index
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
+
+range :: (Integral a) => a -> [a]
+range n = [0..(n-1)]
 
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
@@ -140,6 +143,38 @@ removeNth xs n = ys ++ tail zs
 iterateN :: Int -> (a -> a) -> a -> a
 iterateN n f x = head . drop n $ iterate f x
 
+updateSweep :: Gestalt -> Gestalt
+updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = undefined
+updateSweep g = foldl updateIthSequence g is
+  where is = (range . length . motifIndices) g
+                
+--springConstant :: MotifIndices -> Index -> Index -> 
+springConstant mis i j k = 1 / (variance $ map fromIntegral $ zipWith (-) is js)
+  where is = selectColumn mis' i
+        js = selectColumn mis' j
+        mis' = removeNth mis k 
+
+selectColumn :: [[a]] -> Index -> [a]
+selectColumn xss i = [xs !! i | xs <- xss]
+
+variance :: (Floating a) => [a] -> a
+variance xs = (mean $ map (**2) xs) - (mean xs) ** 2
+
+mean :: (Fractional a) => [a] -> a
+mean xs = (sum xs) / fromIntegral (length xs)
+
+converge :: Gestalt -> IO Gestalt
+converge g = converge' g (updateAlignment g)
+  where converge' g mg = do { g' <- mg
+                            ; if motifIndices g == motifIndices g'
+                                 then return g
+                              else converge' g' (updateAlignment g')
+                            }
+          
+fixpoint :: (Eq b) => (a -> a) -> a -> (a -> b) -> a
+fixpoint f a p = fst $ head $ dropWhile (\(x,y) -> p x /= p y) $ zip its (tail its)
+  where its = iterate f a
+  
 main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
           ; mis <- seedMotifs seqs
           ; return (Gestalt seqs mis)
