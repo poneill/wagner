@@ -95,6 +95,44 @@ updateAlignment gestalt = do { let seqs = sequences gestalt
                               }
                            
 
+ivanizeIthSequence :: Gestalt -> Int -> IO Gestalt
+ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
+                            ; placements <- foldl folder (return []) motifOrder
+                            ; let mi' = collocateMotifIndex placements
+                            ; return (Gestalt seqs (deparate i mi' mis'))
+                            }
+                         where mis = motifIndices g
+                               seqs = sequences g
+                               (_,mis') = separate i mis
+                               (seq,seqs') = separate i seqs
+                               pssms' = recoverPSSMs (Gestalt seqs' mis')
+                               folder = (\ma b -> ma >>= \x -> addToMIs seq x b)
+                               
+orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
+-- establish an order in which the PSSMs are to be indexed.  For now,
+-- they are just sorted by their max response over sequence
+orderMotifs pssms seq seqs = return sorteds 
+  where sorteds = sortBy f indexedPSSMs
+        indexedPSSMs = zip [0..] pssms
+        f p q 
+          | maxOverSequence (snd p) seq < maxOverSequence (snd q) seq = LT
+          | otherwise = GT
+
+
+addToMIs :: Sequence -> [(Index,Index)] -> (Int,PSSM) -> IO [(Index,Index)]
+-- [(i,j)] denotes the placement index j of the ith motif
+addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
+  where j = maxResponseOverSeq pssm seq
+
+collocateMotifIndex :: [(Index,Index)] -> MotifIndex
+collocateMotifIndex = (map snd) . sort
+  
+separate :: Index -> [a] -> (a,[a])
+separate i seqs = (seqs !! i, removeNth seqs i)
+
+deparate :: Index -> a -> [a] -> [a]
+deparate i a as = (take i as) ++ [a] ++ (drop (i + 1) as)
+  
 updateIthSequence :: Gestalt -> Int -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
     where 
@@ -148,7 +186,8 @@ updateSweep :: Gestalt -> Gestalt
 updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = undefined
 updateSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
-                
+
+
 --springConstant :: MotifIndices -> Index -> Index -> 
 springConstant mis i j k = 1 / (variance $ map fromIntegral $ zipWith (-) is js)
   where is = selectColumn mis' i
