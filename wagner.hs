@@ -134,7 +134,7 @@ separate i seqs = (seqs !! i, removeNth seqs i)
 deparate :: Index -> a -> [a] -> [a]
 deparate i a as = (take i as) ++ [a] ++ (drop i as)
   
-updateIthSequence :: Gestalt -> Int -> Gestalt
+updateIthSequence :: Gestalt -> Index -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
     where 
       seqs = sequences gestalt
@@ -189,7 +189,7 @@ updateSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
 
 ivanSweep :: Gestalt -> IO Gestalt
-ivanSweep g | trace ("ivanSweep"++ " " ++ show (motifIndices g)) False = undefined
+--ivanSweep g | trace ("ivanSweep"++ " " ++ show (motifIndices g)) False = undefined
 ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
   where is = (range . length . motifIndices) g
         
