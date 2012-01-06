@@ -1,3 +1,4 @@
+--wagner.hs
 import Data.List
 import Data.Char (isSpace)
 import System.IO
