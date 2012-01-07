@@ -131,8 +131,8 @@ collocateMotifIndex = (map snd) . sort
 separate :: Index -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
 
-deparate :: Index -> a -> [a] -> [a]
-deparate i a as = (take i as) ++ [a] ++ (drop i as)
+deparate :: Index -> a -> [a] -> [a] 
+deparate i a as = (take i as) ++ [a] ++ (drop i as) --note: inserts, doesn't replace
   
 updateIthSequence :: Gestalt -> Index -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
