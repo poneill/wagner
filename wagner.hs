@@ -107,7 +107,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                (_,mis') = separate i mis
                                (seq,seqs') = separate i seqs
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
-                               folder = (\ma b -> ma >>= \x -> addToMIs seq x b)
+                               folder = \ma b -> ma >>= \x -> addToMIs seq x b
                                
 orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
 -- establish an order in which the PSSMs are to be indexed.  For now,
@@ -126,13 +126,13 @@ addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
   where j = maxResponseOverSeq pssm seq
 
 collocateMotifIndex :: [(Index,Index)] -> MotifIndex
-collocateMotifIndex = (map snd) . sort
+collocateMotifIndex = map snd . sort
   
 separate :: Index -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
 
 deparate :: Index -> a -> [a] -> [a] 
-deparate i a as = (take i as) ++ [a] ++ (drop i as) --note: inserts, doesn't replace
+deparate i a as = take i as ++ [a] ++ drop i as --note: inserts, doesn't replace
   
 updateIthSequence :: Gestalt -> Index -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
@@ -181,7 +181,7 @@ removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
 
 iterateN :: Int -> (a -> a) -> a -> a
-iterateN n f x = head . drop n $ iterate f x
+iterateN n f x = iterate f x !! n
 
 updateSweep :: Gestalt -> Gestalt
 updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = undefined
@@ -194,7 +194,7 @@ ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
   where is = (range . length . motifIndices) g
         
 --springConstant :: MotifIndices -> Index -> Index -> 
-springConstant mis i j k = 1 / (variance $ map fromIntegral $ zipWith (-) is js)
+springConstant mis i j k = 1 / variance $ map fromIntegral $ zipWith (-) is js
   where is = selectColumn mis' i
         js = selectColumn mis' j
         mis' = removeNth mis k 
@@ -203,10 +203,10 @@ selectColumn :: [[a]] -> Index -> [a]
 selectColumn xss i = [xs !! i | xs <- xss]
 
 variance :: (Floating a) => [a] -> a
-variance xs = (mean $ map (**2) xs) - (mean xs) ** 2
+variance xs = mean (map (**2) xs) - (mean xs) ** 2
 
 mean :: (Fractional a) => [a] -> a
-mean xs = (sum xs) / fromIntegral (length xs)
+mean xs = sum xs / fromIntegral (length xs)
 
 converge :: Gestalt -> IO Gestalt
 converge g = converge' g (updateAlignment g)
