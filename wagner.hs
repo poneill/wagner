@@ -132,8 +132,11 @@ separate :: Index -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
 
 insertAt :: Index -> a -> [a] -> [a] 
-insertAt i a as = take i as ++ [a] ++ drop i as --note: inserts, doesn't replace
-  
+insertAt i a as = take i as ++ [a] ++ drop i as 
+
+replaceAt :: Index -> a -> [a] -> [a] 
+replaceAt i a as = take i as ++ [a] ++ drop (i + 1) as 
+
 patrifyIthSequence :: Gestalt -> Index -> Gestalt
 patrifyIthSequence gestalt i = Gestalt seqs mis'
     where 
