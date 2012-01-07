@@ -100,7 +100,7 @@ ivanizeIthSequence :: Gestalt -> Int -> IO Gestalt
 ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                             ; placements <- foldl folder (return []) motifOrder
                             ; let mi' = collocateMotifIndex placements
-                            ; return (Gestalt seqs (deparate i mi' mis'))
+                            ; return (Gestalt seqs (insertAt i mi' mis'))
                             }
                          where mis = motifIndices g
                                seqs = sequences g
@@ -147,7 +147,7 @@ patrifyIthSequence gestalt i = Gestalt seqs mis'
       mi = mis !! i
       misRest = removeNth mis i  
       mi' = rescoreSequence seq seqs misRest
-      mis' = take i mis ++ [mi'] ++ drop (i + 1) mis
+      mis' = replaceAt i mi' mis 
             
 maxOverSequence :: PSSM -> Sequence -> Float --scan PSSM over sequence, take max
 maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
