@@ -186,9 +186,9 @@ removeNth xs n = ys ++ tail zs
 iterateN :: Int -> (a -> a) -> a -> a
 iterateN n f x = iterate f x !! n
 
-patSweep :: Gestalt -> Gestalt
-patSweep g | trace ("patSweep"++ " " ++ show (motifIndices g)) False = undefined
-patSweep g = foldl updateIthSequence g is
+updateSweep :: Gestalt -> Gestalt
+updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = undefined
+updateSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
 
 ivanSweep :: Gestalt -> IO Gestalt
