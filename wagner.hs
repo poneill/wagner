@@ -67,6 +67,10 @@ distanceMatrix :: Int -> MotifIndices -> DistanceMatrix
 distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = mis !! n
 
+varianceMatrix :: (Floating a) => MotifIndices -> [[a]]
+varianceMatrix mis = (map $ map (variance . map fromIntegral)) $ map transpose (transpose dms)
+  where dms = [distanceMatrix i mis | i <- [0..length mis - 1]]
+  
 rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
 --Accepts a sequence and its LOO MotifIndices, returns a MotifIndex for sequence
 --by greedily assigning tfs in sequential order.
@@ -108,7 +112,19 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                (seq,seqs') = separate i seqs
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder = \ma b -> ma >>= \x -> addToMIs seq x b
-                               
+
+-- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
+-- patrifyIthSequence g i = return seqs mis''
+--   where mis = motifIndices g
+--         seqs = sequences g
+--         (mi,mis') = separate i mis
+--         (seq,seqs') = separate i seqs
+--         pssms' = recoverPSSMs (Gestalt seqs' mis')
+--         dm = distanceMatrix i mis'
+--         mis'' = patrifySequence seq 
+        
+
+  
 orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
 -- establish an order in which the PSSMs are to be indexed.  For now,
 -- they are just sorted by their max response over sequence
