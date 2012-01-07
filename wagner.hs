@@ -92,7 +92,7 @@ updateAlignment :: Gestalt -> IO Gestalt
 updateAlignment gestalt = do { let seqs = sequences gestalt
                              ; let mis = motifIndices gestalt 
                              ; i <- randomRIO (0, length mis - 1)
-                             ; return (patrifyIthSequence gestalt i)
+                             ; return (updateIthSequence gestalt i)
                               }
                            
 
@@ -137,8 +137,8 @@ insertAt i a as = take i as ++ [a] ++ drop i as
 replaceAt :: Index -> a -> [a] -> [a] 
 replaceAt i a as = take i as ++ [a] ++ drop (i + 1) as 
 
-patrifyIthSequence :: Gestalt -> Index -> Gestalt
-patrifyIthSequence gestalt i = Gestalt seqs mis'
+updateIthSequence :: Gestalt -> Index -> Gestalt
+updateIthSequence gestalt i = Gestalt seqs mis'
     where 
       seqs = sequences gestalt
       mis = motifIndices gestalt
@@ -188,7 +188,7 @@ iterateN n f x = iterate f x !! n
 
 patSweep :: Gestalt -> Gestalt
 patSweep g | trace ("patSweep"++ " " ++ show (motifIndices g)) False = undefined
-patSweep g = foldl patrifyIthSequence g is
+patSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
 
 ivanSweep :: Gestalt -> IO Gestalt
