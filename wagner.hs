@@ -140,13 +140,19 @@ orderMotifs pssms seq seqs = return sorteds
           | maxOverSequence (snd p) seq < maxOverSequence (snd q) seq = LT
           | otherwise = GT
 
+sample :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO a 
+sample as f = do { r <- randomRIO (0.0,1.0)
+                 ; return (sample' as f r)
+                 }
 
-sample :: (Ord b, Floating b) => [a] -> (a -> b) -> a
--- Pick an a according to a probability function (and an implicit
+sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
+-- Pick an a according to a likelihood function (and an implicit
 -- constant k)
-sample as f = fst $ argMax snd $ filter (\x -> snd x < r) $ map (\a -> (a, (f a)**k)) as
+sample' as f r = fst $ argMax snd $ filter (\x -> snd x < r) $ tups
               where k = 1
-                    r = 1
+                    faks = map (\a -> (f a) ** k) as
+                    tups = zip as (map (/z) faks)
+                    z = sum faks
                           
 addToMIs :: Sequence -> [(Index,Index)] -> (Int,PSSM) -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
