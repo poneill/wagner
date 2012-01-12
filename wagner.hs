@@ -40,6 +40,9 @@ log2 = logBase 2
 
 argMax :: (Ord b) => (a -> b) -> [a] -> a
 argMax f = foldl1 (\x x' -> if f x' > f x then x' else x) 
+
+argMin :: (Ord b) => (a -> b) -> [a] -> a
+argMin f = foldl1 (\x x' -> if f x' <= f x then x' else x) 
   
 trim :: String -> String --stole this from wikipedia for portability
 trim = f . f
@@ -140,20 +143,39 @@ orderMotifs pssms seq seqs = return sorteds
           | maxOverSequence (snd p) seq < maxOverSequence (snd q) seq = LT
           | otherwise = GT
 
-sample :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO a 
+orderMotifs' :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
+orderMotifs' pssms seq seqs = orderBySampling indexedPSSMs f 
+  where f p = maxOverSequence (snd p) seq
+        indexedPSSMs = zip [0..] pssms
+                                                 
+--orderBySampling :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO [a]
+orderBySampling as f | trace ("orderBySampling"++ " " ++ show as) False = undefined
+--orderBySampling [] f = return []
+orderBySampling [a] f = return [a]
+orderBySampling as f = do { a <- sample as f
+                          ; let aless = delete a as
+                          ; aless' <- orderBySampling aless f
+                          ; return ([a] ++ aless')
+                          }
+                            
+
+--sample :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO a 
+sample as f | trace ("sample"++ " " ++ show as) False = undefined
 sample as f = do { r <- randomRIO (0.0,1.0)
                  ; return (sample' as f r)
                  }
 
-sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
+--sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
-sample' as f r = fst $ argMax snd $ filter (\x -> snd x < r) $ tups
+sample' as f r | trace ("sample'"++ " " ++ show as++ " " ++ " " ++ show r) False = undefined
+sample' as f r = fst $ argMin snd $ filter (\x -> snd x >= r) $ tups
               where k = 1
                     faks = map (\a -> (f a) ** k) as
-                    tups = zip as (map (/z) faks)
+                    tups = zip as (scanl1 (+) (map (/z) faks))
                     z = sum faks
                           
+
 addToMIs :: Sequence -> [(Index,Index)] -> (Int,PSSM) -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
 addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
