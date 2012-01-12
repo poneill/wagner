@@ -100,6 +100,11 @@ updateAlignment gestalt = do { let seqs = sequences gestalt
                               }
                            
 
+{- in Ivanization, we update the placements of the motif indices for a
+given sequence.  We do this by iteratively adding motif indices,
+sampled randomly according to their maxResponseOverPSSM and their
+z-score.-}
+
 ivanizeIthSequence :: Gestalt -> Int -> IO Gestalt
 ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                             ; placements <- foldl folder (return []) motifOrder
@@ -136,6 +141,13 @@ orderMotifs pssms seq seqs = return sorteds
           | otherwise = GT
 
 
+sample :: (Ord b, Floating b) => [a] -> (a -> b) -> a
+-- Pick an a according to a probability function (and an implicit
+-- constant k)
+sample as f = fst $ argMax snd $ filter (\x -> snd x < r) $ map (\a -> (a, (f a)**k)) as
+              where k = 1
+                    r = 1
+                          
 addToMIs :: Sequence -> [(Index,Index)] -> (Int,PSSM) -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
 addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
