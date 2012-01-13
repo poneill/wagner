@@ -71,7 +71,7 @@ distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = mis !! n
 
 varianceMatrix :: (Floating a) => MotifIndices -> [[a]]
-varianceMatrix mis = (map $ map (variance . map fromIntegral)) $ map transpose (transpose dms)
+varianceMatrix mis = map (map (variance . map fromIntegral) . transpose) (transpose dms)
   where dms = [distanceMatrix i mis | i <- [0..length mis - 1]]
   
 rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
@@ -119,7 +119,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                (_,mis') = separate i mis
                                (seq,seqs') = separate i seqs
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
-                               folder = \ma b -> ma >>= \x -> addToMIs seq x b
+                               folder ma b = ma >>= \x -> addToMIs seq x b
 
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
@@ -155,7 +155,7 @@ orderBySampling [a] f = return [a]
 orderBySampling as f = do { a <- sample as f
                           ; let aless = delete a as
                           ; aless' <- orderBySampling aless f
-                          ; return ([a] ++ aless')
+                          ; return (a : aless')
                           }
                             
 
@@ -169,9 +169,9 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
 sample' as f r | trace ("sample'"++ " " ++ show as++ " " ++ " " ++ show r) False = undefined
-sample' as f r = fst $ argMin snd $ filter (\x -> snd x >= r) $ tups
+sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
-                    faks = map (\a -> (f a) ** k) as
+                    faks = map (\a -> f a ** k) as
                     tups = zip as (scanl1 (+) (map (/z) faks))
                     z = sum faks
                           
@@ -262,7 +262,7 @@ selectColumn :: [[a]] -> Index -> [a]
 selectColumn xss i = [xs !! i | xs <- xss]
 
 variance :: (Floating a) => [a] -> a
-variance xs = mean (map (**2) xs) - (mean xs) ** 2
+variance xs = mean (map (**2) xs) - mean xs ** 2
 
 mean :: (Fractional a) => [a] -> a
 mean xs = sum xs / fromIntegral (length xs)
