@@ -141,7 +141,7 @@ orderMotifs pssms seq seqs = return sorteds
         indexedPSSMs = zip [0..] pssms
         f p q 
           | maxOverSequence (snd p) seq < maxOverSequence (snd q) seq = LT
-          | otherwise = GT
+          | otherwise                                                 = GT
 
 orderMotifs' :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
 orderMotifs' pssms seq seqs = orderBySampling indexedPSSMs f 
