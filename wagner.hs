@@ -137,9 +137,9 @@ ivanizeIthSequence' g i = do { motifOrder <- orderMotifs' pssms' seq seqs'
         folder ma b = ma >>= \x -> addToMIs seq x b
 
 potential :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> VarMatrix -> Float
-potential seq (i,pssm) indexedPSSMs varMatrix = bindingEnergy + stringEnergy
+potential seq (i,pssm) assignedIPSSMs varMatrix = bindingEnergy + stringEnergy
   where bindingEnergy = score pssm seq
-        stringEnergy = sum [energyFromString j | (j,p) <- indexedPSSMs]
+        stringEnergy = sum [energyFromString j | (j,p) <- assignedIPSSMs]
         energyFromString j = (1/ (var j)) * fromIntegral (i - j) ** 2
         var j = varMatrix !! i !! j
 
@@ -154,9 +154,12 @@ potential seq (i,pssm) indexedPSSMs varMatrix = bindingEnergy + stringEnergy
 --         mis'' = patrifySequence seq 
 --         varMatrix = varianceMatrix mis
         
--- assignIthIndices :: Sequence -> [IndexedPSSM] -> [IndexedPSSM] -> MotifIndex
--- assignIthIndices seq assignedIPs [] = toMotifIndex assignedIPs
-
+assignIthIndices :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> Index
+-- given the ith pssm and a list of pssms already assigned
+assignIthIndices seq assignedIPs [] = toMotifIndex assignedIPs
+assignIthIndices seq assignedIPs unassignedIPs = assignIthIndices assignedIPs' unassignedIPs'
+  where 
+    
 toMotifIndex :: [IndexedPSSM] -> MotifIndex
 toMotifIndex = (map fst) . (sortWith snd)
   
