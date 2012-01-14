@@ -143,7 +143,6 @@ potential seq (i,pssm) indexedPSSMs varMatrix = bindingEnergy + stringEnergy
         energyFromString j = (1/ (var j)) * fromIntegral (i - j) ** 2
         var j = varMatrix !! i !! j
 
-
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
 --   where mis = motifIndices g
@@ -153,9 +152,18 @@ potential seq (i,pssm) indexedPSSMs varMatrix = bindingEnergy + stringEnergy
 --         pssms' = recoverPSSMs (Gestalt seqs' mis')
 --         dm = distanceMatrix i mis'
 --         mis'' = patrifySequence seq 
+--         varMatrix = varianceMatrix mis
         
+-- assignIthIndices :: Sequence -> [IndexedPSSM] -> [IndexedPSSM] -> MotifIndex
+-- assignIthIndices seq assignedIPs [] = toMotifIndex assignedIPs
 
+toMotifIndex :: [IndexedPSSM] -> MotifIndex
+toMotifIndex = (map fst) . (sortWith snd)
   
+sortWith :: (Ord b) => (a -> b) -> [a] -> [a]
+sortWith f xs = map fst $ sortBy g $ map (\x -> (x, f x)) xs
+  where g (x, fx) (y, fy) = compare fx fy
+          
 orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [IndexedPSSM]
 -- establish an order in which the PSSMs are to be indexed.  For now,
 -- they are just sorted by their max response over sequence
