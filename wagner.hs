@@ -18,6 +18,8 @@ type MotifIndex = [Index] --Records left endpoints of occurrence of
 type MotifIndexCol = [Index]
 type MotifIndices = [MotifIndex]
 type Index = Int
+type IndexedPSSM = (Index, PSSM)
+type VarMatrix = [[Float]]
 data Gestalt = Gestalt { sequences :: Sequences 
                        , motifIndices :: MotifIndices
                        }
@@ -121,6 +123,27 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
+ivanizeIthSequence' :: Gestalt -> Int -> IO Gestalt
+ivanizeIthSequence' g i = do { motifOrder <- orderMotifs' pssms' seq seqs'
+                             ; placements <- foldl folder (return []) motifOrder
+                             ; let mi' = collocateMotifIndex placements
+                             ; return (Gestalt seqs (insertAt i mi' mis'))
+                             }
+  where mis = motifIndices g
+        seqs = sequences g
+        (_,mis') = separate i mis
+        (seq,seqs') = separate i seqs
+        pssms' = recoverPSSMs (Gestalt seqs' mis')
+        folder ma b = ma >>= \x -> addToMIs seq x b
+
+potential :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> VarMatrix -> Float
+potential seq (i,pssm) indexedPSSMs varMatrix = bindingEnergy + stringEnergy
+  where bindingEnergy = score pssm seq
+        stringEnergy = sum [energyFromString j | (j,p) <- indexedPSSMs]
+        energyFromString j = (1/ (var j)) * fromIntegral (i - j) ** 2
+        var j = varMatrix !! i !! j
+
+
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
 --   where mis = motifIndices g
@@ -133,7 +156,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
         
 
   
-orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [(Int, PSSM)]
+orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [IndexedPSSM]
 -- establish an order in which the PSSMs are to be indexed.  For now,
 -- they are just sorted by their max response over sequence
 orderMotifs pssms seq seqs = return sorteds 
@@ -176,7 +199,7 @@ sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
                     z = sum faks
                           
 
-addToMIs :: Sequence -> [(Index,Index)] -> (Int,PSSM) -> IO [(Index,Index)]
+addToMIs :: Sequence -> [(Index,Index)] -> IndexedPSSM -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
 addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
   where j = maxResponseOverSeq pssm seq
