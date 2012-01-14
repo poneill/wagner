@@ -7,6 +7,7 @@ import Control.Monad (replicateM)
 import Debug.Trace
 type DistanceMatrix = [[Int]]
 type Sequence = String
+type NamedSequence = (Int,String)
 type PSSM = [[Float]]
 type Motif = [Sequence]
 type Sequences = [Sequence] --the idea here is that Sequences are just
@@ -17,8 +18,9 @@ type MotifIndex = [Index] --Records left endpoints of occurrence of
                         --recover Motif from Sequences
 type MotifIndexCol = [Index]
 type MotifIndices = [MotifIndex]
-type Index = Int
-type IndexedPSSM = (Index, PSSM)
+type Index = Int --An index is a position in a sequence
+type Name = Int --A name is a tag denoting a motif element.
+type NamedPSSM = (Name, PSSM)
 type VarMatrix = [[Float]]
 data Gestalt = Gestalt { sequences :: Sequences 
                        , motifIndices :: MotifIndices
@@ -40,11 +42,13 @@ range n = [0..(n-1)]
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
-argMax :: (Ord b) => (a -> b) -> [a] -> a
-argMax f = foldl1 (\x x' -> if f x' > f x then x' else x) 
+--argMax :: (Ord b) => (a -> b) -> [a] -> a
+argMax f xs | trace ("argMax"++ " " ++ " " ++ show xs) False = undefined
+argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
 
-argMin :: (Ord b) => (a -> b) -> [a] -> a
-argMin f = foldl1 (\x x' -> if f x' <= f x then x' else x) 
+--argMin :: (Ord b) => (a -> b) -> [a] -> a
+argMin f xs | trace ("argMin"++ " " ++ show xs) False = undefined
+argMin f xs = foldl1 (\x x' -> if f x' <= f x then x' else x) xs
   
 trim :: String -> String --stole this from wikipedia for portability
 trim = f . f
@@ -82,8 +86,11 @@ rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
 rescoreSequence seq seqs mis = [maxResponseOverSeq pssm seq | pssm <- pssms]
   where pssms = map (`recoverPSSM` seqs) $ transpose mis
 
-score :: PSSM -> Sequence -> Float
+score :: PSSM -> Sequence -> Float -- assumes sequence is as long as pssm
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
+
+scoreAt :: PSSM -> Sequence -> Index -> Float
+scoreAt pssm seq i = score pssm (drop i seq)
 
 maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
@@ -123,12 +130,14 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
-potential :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> VarMatrix -> Float
-potential seq (i,pssm) assignedIPSSMs varMatrix = bindingEnergy + stringEnergy
-  where bindingEnergy = score pssm seq
-        stringEnergy = sum [energyFromString j | (j,p) <- assignedIPSSMs]
-        energyFromString j = (1/ var j) * fromIntegral (i - j) ** 2
+potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> VarMatrix -> Float
+potential seq (i,pssm) pos mi varMatrix = bindingEnergy + stringEnergy
+  where bindingEnergy = 1 / exp (scoreAt pssm seq pos) --bigger is worse
+        stringEnergy = sum [energyFromString j jpos 
+                           | (j, jpos) <- zip [0..] mi, j /= i]
+        energyFromString j jpos = (1/ var j) * fromIntegral (pos - jpos) ** 2
         var j = varMatrix !! i !! j
+
 
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
@@ -141,20 +150,44 @@ potential seq (i,pssm) assignedIPSSMs varMatrix = bindingEnergy + stringEnergy
 --         mis'' = patrifySequence seq 
 --         varMatrix = varianceMatrix mis
         
-assignIthIndices :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> Index
--- given the ith pssm and a list of pssms already assigned
-assignIthIndices seq assignedIPs [] = toMotifIndex assignedIPs
-assignIthIndices seq assignedIPs unassignedIPs = assignIthIndices assignedIPs' unassignedIPs'
-  where 
+patrify :: Gestalt -> IO Gestalt
+patrify (Gestalt seqs mis) = do
+  seqNum <- randomRIO (0, length seqs - 1)
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis
+  let  mi' = replaceAt motifNum i' mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+  
+  
+
+assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
+assignIthIndex (seqNum,seq) (i,pssm) mis = do
+  pos' <- sample positions (\pos -> exp (- energy pos))
+  return pos'
+  where end = length seq - length pssm --check this
+        positions = [0..end]
+        mi = mis !! seqNum
+        energy pos = potential seq (i,pssm) pos mi varMatrix
+        varMatrix = varianceMatrix (delete mi mis)
+
     
-toMotifIndex :: [IndexedPSSM] -> MotifIndex
+toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
+  
+chooseRandomly :: [a] -> IO a
+chooseRandomly xs = do
+  r <- randomRIO (0, length xs - 1)
+  return (xs !! r)
   
 sortWith :: (Ord b) => (a -> b) -> [a] -> [a]
 sortWith f xs = map fst $ sortBy g $ map (\x -> (x, f x)) xs
   where g (x, fx) (y, fy) = compare fx fy
           
-orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [IndexedPSSM]
+orderMotifs :: [PSSM] -> Sequence -> Sequences -> IO [NamedPSSM]
 -- establish an order in which the PSSMs are to be indexed.  For now,
 -- they are just sorted by their max response over sequence
 orderMotifs pssms seq seqs = return sorteds 
@@ -170,7 +203,6 @@ orderMotifs' pssms seq seqs = orderBySampling indexedPSSMs f
         indexedPSSMs = zip [0..] pssms
                                                  
 --orderBySampling :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO [a]
-orderBySampling as f | trace ("orderBySampling"++ " " ++ show as) False = undefined
 --orderBySampling [] f = return []
 orderBySampling [a] f = return [a]
 orderBySampling as f = do { a <- sample as f
@@ -181,7 +213,6 @@ orderBySampling as f = do { a <- sample as f
                             
 
 --sample :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO a 
-sample as f | trace ("sample"++ " " ++ show as) False = undefined
 sample as f = do { r <- randomRIO (0.0,1.0)
                  ; return (sample' as f r)
                  }
@@ -189,7 +220,6 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 --sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
-sample' as f r | trace ("sample'"++ " " ++ show as++ " " ++ " " ++ show r) False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
                     faks = map (\a -> f a ** k) as
@@ -197,7 +227,7 @@ sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
                     z = sum faks
                           
 
-addToMIs :: Sequence -> [(Index,Index)] -> IndexedPSSM -> IO [(Index,Index)]
+addToMIs :: Sequence -> [(Index,Index)] -> NamedPSSM -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
 addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
   where j = maxResponseOverSeq pssm seq
@@ -232,6 +262,10 @@ maxOverSequence pssm seq = maximum  $ scoreSequence pssm seq
 recoverPSSM :: MotifIndexCol -> Sequences -> PSSM
 recoverPSSM mic seqs = makePSSM (recoverMotif mic seqs) uniformProbs
 
+recoverNthPSSM :: Sequences -> MotifIndices -> Int -> PSSM
+recoverNthPSSM seqs mis n = recoverPSSM mic seqs 
+  where mic = (transpose mis) !! n
+
 recoverPSSMs :: Gestalt -> [PSSM]
 recoverPSSMs gestalt = map (`recoverPSSM` seqs) mics
   where mics = transpose $ motifIndices gestalt
@@ -264,7 +298,6 @@ iterateN :: Int -> (a -> a) -> a -> a
 iterateN n f x = iterate f x !! n
 
 updateSweep :: Gestalt -> Gestalt
-updateSweep g | trace ("updateSweep"++ " " ++ show (motifIndices g)) False = undefined
 updateSweep g = foldl updateIthSequence g is
   where is = (range . length . motifIndices) g
 
