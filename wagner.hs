@@ -123,24 +123,11 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
-ivanizeIthSequence' :: Gestalt -> Int -> IO Gestalt
-ivanizeIthSequence' g i = do { motifOrder <- orderMotifs' pssms' seq seqs'
-                             ; placements <- foldl folder (return []) motifOrder
-                             ; let mi' = collocateMotifIndex placements
-                             ; return (Gestalt seqs (insertAt i mi' mis'))
-                             }
-  where mis = motifIndices g
-        seqs = sequences g
-        (_,mis') = separate i mis
-        (seq,seqs') = separate i seqs
-        pssms' = recoverPSSMs (Gestalt seqs' mis')
-        folder ma b = ma >>= \x -> addToMIs seq x b
-
 potential :: Sequence -> IndexedPSSM -> [IndexedPSSM] -> VarMatrix -> Float
 potential seq (i,pssm) assignedIPSSMs varMatrix = bindingEnergy + stringEnergy
   where bindingEnergy = score pssm seq
         stringEnergy = sum [energyFromString j | (j,p) <- assignedIPSSMs]
-        energyFromString j = (1/ (var j)) * fromIntegral (i - j) ** 2
+        energyFromString j = (1/ var j) * fromIntegral (i - j) ** 2
         var j = varMatrix !! i !! j
 
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
@@ -161,7 +148,7 @@ assignIthIndices seq assignedIPs unassignedIPs = assignIthIndices assignedIPs' u
   where 
     
 toMotifIndex :: [IndexedPSSM] -> MotifIndex
-toMotifIndex = (map fst) . (sortWith snd)
+toMotifIndex = map fst . sortWith snd
   
 sortWith :: (Ord b) => (a -> b) -> [a] -> [a]
 sortWith f xs = map fst $ sortBy g $ map (\x -> (x, f x)) xs
