@@ -44,11 +44,11 @@ log2 = logBase 2
 
 --argMax :: (Ord b) => (a -> b) -> [a] -> a
 
-argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
+argMax f = foldl1 (\x x' -> if f x' > f x then x' else x)
 
 --argMin :: (Ord b) => (a -> b) -> [a] -> a
 
-argMin f xs = foldl1 (\x x' -> if f x' <= f x then x' else x) xs
+argMin f = foldl1 (\x x' -> if f x' <= f x then x' else x)
   
 trim :: String -> String --stole this from wikipedia for portability
 trim = f . f
@@ -134,7 +134,7 @@ potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + a * stringEnergy)/700
   where bindingEnergy =printBE $ - (scoreAt pssm seq pos) --bigger is worse
-        stringEnergy =printSE $ sum [log $ (energyFromString j jpos) + epsilon
+        stringEnergy =printSE $ sum [log $ epsilon + energyFromString j jpos
                            | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral (pos - jpos) ** 2
         var j = varMatrix !! i !! j
@@ -166,9 +166,8 @@ patrify (Gestalt seqs mis) = do
 
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
 
-assignIthIndex (seqNum,seq) (i,pssm) mis = do
-  pos' <- sample positions (\pos ->printEnergy $ exp (- energy pos))
-  return pos'
+assignIthIndex (seqNum,seq) (i,pssm) mis =
+  sample positions (\pos ->printEnergy $ exp (- energy pos))
   where end = length seq - length pssm --check this
         positions = [0..end]
         mi = mis !! seqNum
@@ -306,7 +305,7 @@ ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
   where is = (range . length . motifIndices) g
         
 --springConstant :: MotifIndices -> Index -> Index -> 
-springConstant mis i j k = 1 / (epsilon + (variance $ map fromIntegral $ zipWith (-) is js))
+springConstant mis i j k = 1 / (epsilon + variance (map fromIntegral $ zipWith (-) is js))
   where is = selectColumn mis' i
         js = selectColumn mis' j
         mis' = removeNth mis k 
@@ -339,14 +338,14 @@ main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
 
 -- debugging
 
-printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
-printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
-printSE x | trace ("printSE"++ " " ++ show x) False = undefined
-printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
-printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
-printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
-printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
-printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+-- printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
+-- printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
+-- printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+-- printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
+-- printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
+-- printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
+-- printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+-- printBE x | trace ("printBE"++ " " ++ show x) False = undefined
 
 printBE x = x
 printEFS x = x
