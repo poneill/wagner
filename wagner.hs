@@ -138,7 +138,7 @@ potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + a * stringEnergy)/700
                            | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral (pos - jpos) ** 2
         var j = varMatrix !! i !! j
-        a = 1/10
+        a = 0
 
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
@@ -220,7 +220,7 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 1
+              where k = 100
                     faks =printFaks $  map (\a -> f a ** k) as
                     tups =printTubs $ zip as (scanl1 (+) (map (/z) faks))
                     z =printZ $ sum faks
@@ -331,27 +331,39 @@ fixpoint :: (Eq b) => (a -> a) -> a -> (a -> b) -> a
 fixpoint f a p = fst $ head $ dropWhile (\(x,y) -> p x /= p y) $ zip its (tail its)
   where its = iterate f a
   
-main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
-          ; mis <- seedMotifs seqs
-          ; return (Gestalt seqs mis)
-          }
+main = do seqs <- readSequences "data/lexA_e_coli_120.csv"
+          mis <- seedMotifs seqs
+          let g = Gestalt seqs (replicate 30 [52,53,54])
+          let mis = motifIndices g
+          let pssms = recoverPSSMs g
+          let pssm = pssms !! 0
+          let varMatrix = varianceMatrix (motifIndices g)
+          return (Gestalt seqs mis)
+          
 
 -- debugging
 
--- printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
--- printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
--- printSE x | trace ("printSE"++ " " ++ show x) False = undefined
--- printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
--- printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
--- printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
--- printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
--- printBE x | trace ("printBE"++ " " ++ show x) False = undefined
-
-printBE x = x
-printEFS x = x
-printSE x = x
-printEnergy x = x
+printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
 printPotential x = x
+printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
 printTubs xs = xs
+printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+printSE x = x
+printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
 printFaks xs = xs
+printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
 printZ xs = xs
+printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
+printEnergy x = x
+printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+printEFS x = x
+printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+printBE x = x
+
+
+
+
+
+
+
+
