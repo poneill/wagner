@@ -28,7 +28,7 @@ data Gestalt = Gestalt { sequences :: Sequences
              deriving Show
   
 delta = "ACGT"
-epsilon = 1e-10
+epsilon = 1/100
 numMotifs = 3
 motifLength = 16
 uniformProbs = replicate 4 0.25
@@ -132,13 +132,13 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
-potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + stringEnergy)/700
-  where bindingEnergy = 1 / exp (scoreAt pssm seq pos) --bigger is worse
-        stringEnergy = sum [energyFromString j jpos 
+potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + a * stringEnergy)/700
+  where bindingEnergy =printBE $ - (scoreAt pssm seq pos) --bigger is worse
+        stringEnergy =printSE $ sum [log $ (energyFromString j jpos) + epsilon
                            | (j, jpos) <- zip [0..] mi, j /= i]
-        energyFromString j jpos = (1/ var j) * fromIntegral (pos - jpos) ** 2
+        energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral (pos - jpos) ** 2
         var j = varMatrix !! i !! j
-
+        a = 1/10
 
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
@@ -167,15 +167,13 @@ patrify (Gestalt seqs mis) = do
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
 
 assignIthIndex (seqNum,seq) (i,pssm) mis = do
-  pos' <- sample positions (\pos -> exp (- energy pos))
+  pos' <- sample positions (\pos ->printEnergy $ exp (- energy pos))
   return pos'
   where end = length seq - length pssm --check this
         positions = [0..end]
         mi = mis !! seqNum
-        energy pos = grabPotential $ potential seq (i,pssm) pos mi varMatrix
+        energy pos =printPotential $ potential seq (i,pssm) pos mi varMatrix
         varMatrix = varianceMatrix (delete mi mis)
-
-grabPotential x = x
     
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
@@ -223,14 +221,11 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 10
-                    faks = grabFaks $  map (\a -> f a ** k) as
-                    tups = grabTubs $ zip as (scanl1 (+) (map (/z) faks))
-                    z = sum faks
+              where k = 1
+                    faks =printFaks $  map (\a -> f a ** k) as
+                    tups =printTubs $ zip as (scanl1 (+) (map (/z) faks))
+                    z =printZ $ sum faks
                     
-grabTubs xs = xs
-grabFaks xs = xs
-
 addToMIs :: Sequence -> [(Index,Index)] -> NamedPSSM -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
 addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
@@ -341,3 +336,23 @@ main = do { seqs <- readSequences "data/lexA_e_coli_120.csv"
           ; mis <- seedMotifs seqs
           ; return (Gestalt seqs mis)
           }
+
+-- debugging
+
+printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
+printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
+printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
+printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
+printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
+printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+
+printBE x = x
+printEFS x = x
+printSE x = x
+printEnergy x = x
+printPotential x = x
+printTubs xs = xs
+printFaks xs = xs
+printZ xs = xs
