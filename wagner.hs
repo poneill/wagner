@@ -43,11 +43,11 @@ log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
 --argMax :: (Ord b) => (a -> b) -> [a] -> a
-argMax f xs | trace ("argMax"++ " " ++ " " ++ show xs) False = undefined
+
 argMax f xs = foldl1 (\x x' -> if f x' > f x then x' else x) xs
 
 --argMin :: (Ord b) => (a -> b) -> [a] -> a
-argMin f xs | trace ("argMin"++ " " ++ show xs) False = undefined
+
 argMin f xs = foldl1 (\x x' -> if f x' <= f x then x' else x) xs
   
 trim :: String -> String --stole this from wikipedia for portability
@@ -131,7 +131,8 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> VarMatrix -> Float
-potential seq (i,pssm) pos mi varMatrix = bindingEnergy + stringEnergy
+--potential can't be larger than 700, or exp (-potential) will underflow
+potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + stringEnergy)/700
   where bindingEnergy = 1 / exp (scoreAt pssm seq pos) --bigger is worse
         stringEnergy = sum [energyFromString j jpos 
                            | (j, jpos) <- zip [0..] mi, j /= i]
@@ -161,19 +162,20 @@ patrify (Gestalt seqs mis) = do
   let  mi' = replaceAt motifNum i' mi
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
-  
-  
+
 
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
+
 assignIthIndex (seqNum,seq) (i,pssm) mis = do
   pos' <- sample positions (\pos -> exp (- energy pos))
   return pos'
   where end = length seq - length pssm --check this
         positions = [0..end]
         mi = mis !! seqNum
-        energy pos = potential seq (i,pssm) pos mi varMatrix
+        energy pos = grabPotential $ potential seq (i,pssm) pos mi varMatrix
         varMatrix = varianceMatrix (delete mi mis)
 
+grabPotential x = x
     
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
@@ -221,11 +223,13 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- Pick an a according to a likelihood function (and an implicit
 -- constant k)
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 1
-                    faks = map (\a -> f a ** k) as
-                    tups = zip as (scanl1 (+) (map (/z) faks))
+              where k = 10
+                    faks = grabFaks $  map (\a -> f a ** k) as
+                    tups = grabTubs $ zip as (scanl1 (+) (map (/z) faks))
                     z = sum faks
-                          
+                    
+grabTubs xs = xs
+grabFaks xs = xs
 
 addToMIs :: Sequence -> [(Index,Index)] -> NamedPSSM -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
@@ -307,7 +311,7 @@ ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
   where is = (range . length . motifIndices) g
         
 --springConstant :: MotifIndices -> Index -> Index -> 
-springConstant mis i j k = 1 / variance $ map fromIntegral $ zipWith (-) is js
+springConstant mis i j k = 1 / (epsilon + (variance $ map fromIntegral $ zipWith (-) is js))
   where is = selectColumn mis' i
         js = selectColumn mis' j
         mis' = removeNth mis k 
