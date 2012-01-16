@@ -132,14 +132,13 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
-potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> Float
+potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
-potential seq (i,pssm) pos mi mis = (bindingEnergy + a * stringEnergy)/700
+potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)/700
   where bindingEnergy =printBE $ - (scoreAt pssm seq pos) --bigger is worse
         stringEnergy =printSE $ sum [log $ epsilon + energyFromString j jpos
                            | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
-        varMatrix = varianceMatrix mis
         var j = varMatrix !! i !! j
         a = 0
         muMatrix = meanMatrix mis
@@ -171,7 +170,8 @@ patrify (Gestalt seqs mis) = do
   let mi = mis !! seqNum      
   motifNum <- randomRIO (0, numMotifs - 1)
   let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis
+  let varMatrix = varianceMatrix (delete mi mis)
+  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
   let  mi' = replaceAt motifNum i' mi
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
@@ -182,11 +182,12 @@ sa (Gestalt seqs mis) = do
   let seq = seqs !! seqNum      
   let mi = mis !! seqNum      
   motifNum <- randomRIO (0, numMotifs - 1)
+  let varMatrix = varianceMatrix (delete mi mis)
   let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  proPos <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis
+  proPos <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
   let curPos = mi !! motifNum
-  let curPot = potential seq (motifNum,looPSSM) curPos mi mis
-  let proPot = potential seq (motifNum,looPSSM) proPos mi mis
+  let curPot = potential seq (motifNum,looPSSM) curPos mi mis varMatrix
+  let proPot = potential seq (motifNum,looPSSM) proPos mi mis varMatrix
   r <- randomRIO (0.0,1.0)
   let accept = (proPot < curPot) || (r < curPot / proPot)
   let nextPos = if accept then proPos else curPos
@@ -195,14 +196,14 @@ sa (Gestalt seqs mis) = do
   return (Gestalt seqs mis')
 
 
-assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
+assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
 
-assignIthIndex (seqNum,seq) (i,pssm) mis =
+assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
   sample positions (\pos ->printEnergy $ exp (- energy pos))
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
-        energy pos = printPotential $ potential seq (i,pssm) pos mi mis'
+        energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
     
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
