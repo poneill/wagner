@@ -1,5 +1,9 @@
 module Utils where 
 
+import Data.List
+import Data.Char
+import System.Random
+
 range :: (Integral a) => a -> [a]
 range n = [0..(n-1)]
 
@@ -44,41 +48,43 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- constant k)
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
-                    faks =printFaks $  map (\a -> f a ** k) as
-                    tups =printTubs $ zip as (scanl1 (+) (map (/z) faks))
-                    z =printZ $ sum faks
+                    faks =  map (\a -> f a ** k) as
+                    tups = zip as (scanl1 (+) (map (/z) faks))
+                    z = sum faks
 
-separate :: Index -> [a] -> (a,[a])
+separate ::  Int -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
 
-insertAt :: Index -> a -> [a] -> [a] 
+insertAt ::  Int -> a -> [a] -> [a] 
 insertAt i a as = take i as ++ [a] ++ drop i as 
 
-replaceAt :: Index -> a -> [a] -> [a] 
+replaceAt ::  Int -> a -> [a] -> [a] 
 replaceAt i a as = take i as ++ [a] ++ drop (i + 1) as 
 
-readSequences :: FilePath -> IO Sequences
+readSequences :: FilePath -> IO [String]
 readSequences filePath = do
   content <- readFile filePath
   return (sanitizeFASTA content)
   
-sanitizeFASTA :: String -> Sequences
+sanitizeFASTA :: String -> [String]
 sanitizeFASTA content = map (filter (/= ',')) relevantLines
   where ls = map trim (lines content)
         relevantLines = filter ((/= '>') . head) ls
         
-removeNth :: [a] -> Int -> [a]
+removeNth ::  [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
 
-iterateN :: Int -> (a -> a) -> a -> a
-iterateN n f x = iterate f x !! n
-
+iterateN ::  Int -> (a -> a) -> a -> a
+iterateN n f x = iterate f x !! n'
+  where n' = (fromIntegral n)
+        
 matrixMap :: (a -> b) -> [[a]] -> [[b]]
 matrixMap f = map (map f) 
 
-selectColumn :: [[a]] -> Index -> [a]
-selectColumn xss i = [xs !! i | xs <- xss]
+selectColumn ::  [[a]] -> Int -> [a]
+selectColumn xss i = [xs !! i' | xs <- xss]
+  where i' = fromIntegral i
 
 variance :: (Real b, Floating b, Floating a) => [b] -> a
 variance xs = mean (map (**2) xs) - mean xs ** 2
