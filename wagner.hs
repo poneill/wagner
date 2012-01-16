@@ -42,6 +42,26 @@ range n = [0..(n-1)]
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
+gestaltEntropy :: Gestalt -> Float
+gestaltEntropy g = sum $ map motifEntropy motifs
+  where motifs = recoverMotifs g
+        
+motifEntropy :: Motif -> Float
+motifEntropy motif = sum $ map colEntropy motif'
+  where motif' = transpose motif
+
+colEntropy :: (Ord a) => [a] -> Float
+colEntropy col = (-1) * sum (map (\x -> x * log2 (x + epsilon)) freqs)
+  where freqs =  [(fromIntegral count)/ (fromIntegral len) | count <- counts]
+        counts = getCounts col
+        len = length col
+        
+getCounts :: Ord a => [a] -> [Int]
+getCounts col = map length ((group . sort) col)
+
+entropyEpsilon = 10*10e-10
+entropy xs = (- 1) * (sum $ (map (\x -> x * log2 (x + entropyEpsilon)) xs))
+
 argMax :: (Ord b) => (a -> b) -> [a] -> a
 
 argMax f = foldl1 (\x x' -> if f x' > f x then x' else x)
@@ -282,6 +302,12 @@ recoverPSSMs gestalt = map (`recoverPSSM` seqs) mics
 recoverMotif :: MotifIndexCol -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
+recoverMotifs :: Gestalt -> [Motif]
+recoverMotifs g = map (\mic -> recoverMotif mic seqs) mics
+  where mics = transpose $ motifIndices g
+        seqs = sequences g
+        
+
 selectSequence :: Sequences -> IO (Sequence, Sequences)
 selectSequence seqs = do {
   i <- randomRIO (0, length seqs);
@@ -304,6 +330,9 @@ removeNth xs n = ys ++ tail zs
 
 iterateN :: Int -> (a -> a) -> a -> a
 iterateN n f x = iterate f x !! n
+
+matrixMap :: (a -> b) -> [[a]] -> [[b]]
+matrixMap f = map (map f) 
 
 updateSweep :: Gestalt -> Gestalt
 updateSweep g = foldl updateIthSequence g is
@@ -353,21 +382,21 @@ main = do seqs <- readSequences "data/lexA_e_coli_120.csv"
 
 -- debugging
 
-printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
+--printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
 printPotential x = x
-printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
+--printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
 printTubs xs = xs
-printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+--printSE x | trace ("printSE"++ " " ++ show x) False = undefined
 printSE x = x
-printFaks xs | trace ("printFaks"++ " " ++ show xs) False = undefined
+printFaks xs | trace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
 printFaks xs = xs
-printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
+--printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
 printZ xs = xs
-printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
+--printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
 printEnergy x = x
-printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+--printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
 printEFS x = x
-printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+--printBE x | trace ("printBE"++ " " ++ show x) False = undefined
 printBE x = x
 
 
