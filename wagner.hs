@@ -1,4 +1,6 @@
 --wagner.hs
+module Wagner where
+import Prelude
 import Data.List
 import Data.Char (isSpace)
 import System.IO
@@ -174,6 +176,24 @@ patrify (Gestalt seqs mis) = do
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
 
+sa :: Gestalt -> IO Gestalt
+sa (Gestalt seqs mis) = do
+  seqNum <- randomRIO (0, length seqs - 1)
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  proPos <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis
+  let curPos = mi !! motifNum
+  let curPot = potential seq (motifNum,looPSSM) curPos mi mis
+  let proPot = potential seq (motifNum,looPSSM) proPos mi mis
+  r <- randomRIO (0.0,1.0)
+  let accept = (proPot < curPot) || (r < curPot / proPot)
+  let nextPos = if accept then proPos else curPos
+  let  mi' = replaceAt motifNum nextPos mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+
 
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> IO Index
 
@@ -283,12 +303,9 @@ converge g = converge' g (updateAlignment g)
             
 main = do seqs <- readSequences "data/lexA_e_coli_120.csv"
           mis <- seedMotifs seqs
-          let g = Gestalt seqs (replicate 30 [52,53,54])
-          let mis = motifIndices g
-          let pssms = recoverPSSMs g
-          let pssm = pssms !! 0
-          let varMatrix = varianceMatrix (motifIndices g)
-          return (Gestalt seqs mis)
+          let g = Gestalt seqs mis
+          g' <- iterateN 1000 (>>= sa) (return g)
+          print $ gestaltEntropy g'
           
 
 -- debugging
