@@ -300,14 +300,6 @@ converge g = converge' g (updateAlignment g)
                                  then return g
                               else converge' g' (updateAlignment g')
                             }
-            
-main = do seqs <- readSequences "data/lexA_e_coli_120.csv"
-          mis <- seedMotifs seqs
-          let g = Gestalt seqs mis
-          g' <- iterateN 1000 (>>= sa) (return g)
-          print $ gestaltEntropy g'
-          
-
 -- debugging
 
 --printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
