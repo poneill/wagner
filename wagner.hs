@@ -5,6 +5,7 @@ import System.IO
 import System.Random hiding (split)
 import Control.Monad (replicateM)
 import Debug.Trace
+import Utils
 type DistanceMatrix = [[Int]]
 type Sequence = String
 type NamedSequence = (Int,String)
@@ -36,12 +37,6 @@ indexOf :: Char -> Index
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
 
-range :: (Integral a) => a -> [a]
-range n = [0..(n-1)]
-
-log2 :: (Floating a) => a -> a
-log2 = logBase 2
-
 gestaltEntropy :: Gestalt -> Float
 gestaltEntropy g = sum $ map motifEntropy motifs
   where motifs = recoverMotifs g
@@ -55,24 +50,9 @@ colEntropy col = (-1) * sum (map (\x -> x * log2 (x + epsilon)) freqs)
   where freqs =  [(fromIntegral count)/ (fromIntegral len) | count <- counts]
         counts = getCounts col
         len = length col
-        
-getCounts :: Ord a => [a] -> [Int]
-getCounts col = map length ((group . sort) col)
 
 entropyEpsilon = 10*10e-10
 entropy xs = (- 1) * (sum $ (map (\x -> x * log2 (x + entropyEpsilon)) xs))
-
-argMax :: (Ord b) => (a -> b) -> [a] -> a
-
-argMax f = foldl1 (\x x' -> if f x' > f x then x' else x)
-
-argMin :: (Ord b) => (a -> b) -> [a] -> a
-
-argMin f = foldl1 (\x x' -> if f x' <= f x then x' else x)
-  
-trim :: String -> String --stole this from wikipedia for portability
-trim = f . f
-  where f = reverse . dropWhile isSpace
 
 columnProbs :: Sequence -> [Float]
 columnProbs column = [epsilon + fromIntegral (numBases base column) / n 
@@ -206,12 +186,7 @@ assignIthIndex (seqNum,seq) (i,pssm) mis =
     
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
-  
-chooseRandomly :: [a] -> IO a
-chooseRandomly xs = do
-  r <- randomRIO (0, length xs - 1)
-  return (xs !! r)
-  
+    
 sortWith :: (Ord b) => (a -> b) -> [a] -> [a]
 sortWith f xs = map fst $ sortBy g $ map (\x -> (x, f x)) xs
   where g (x, fx) (y, fy) = compare fx fy
@@ -231,29 +206,6 @@ orderMotifs' pssms seq seqs = orderBySampling indexedPSSMs f
   where f p = maxOverSequence (snd p) seq
         indexedPSSMs = zip [0..] pssms
                                                  
---orderBySampling :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO [a]
---orderBySampling [] f = return []
-orderBySampling [a] f = return [a]
-orderBySampling as f = do { a <- sample as f
-                          ; let aless = delete a as
-                          ; aless' <- orderBySampling aless f
-                          ; return (a : aless')
-                          }
-                            
-
---sample :: (Random b, Ord b, Floating b) => [a] -> (a -> b) -> IO a 
-sample as f = do { r <- randomRIO (0.0,1.0)
-                 ; return (sample' as f r)
-                 }
-
---sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
--- Pick an a according to a likelihood function (and an implicit
--- constant k)
-sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 100
-                    faks =printFaks $  map (\a -> f a ** k) as
-                    tups =printTubs $ zip as (scanl1 (+) (map (/z) faks))
-                    z =printZ $ sum faks
                     
 addToMIs :: Sequence -> [(Index,Index)] -> NamedPSSM -> IO [(Index,Index)]
 -- [(i,j)] denotes the placement index j of the ith motif
@@ -263,15 +215,6 @@ addToMIs seq ijs (i,pssm) = return (ijs ++ [(i,j)])
 collocateMotifIndex :: [(Index,Index)] -> MotifIndex
 collocateMotifIndex = map snd . sort
   
-separate :: Index -> [a] -> (a,[a])
-separate i seqs = (seqs !! i, removeNth seqs i)
-
-insertAt :: Index -> a -> [a] -> [a] 
-insertAt i a as = take i as ++ [a] ++ drop i as 
-
-replaceAt :: Index -> a -> [a] -> [a] 
-replaceAt i a as = take i as ++ [a] ++ drop (i + 1) as 
-
 updateIthSequence :: Gestalt -> Index -> Gestalt
 updateIthSequence gestalt i = Gestalt seqs mis'
     where 
@@ -314,25 +257,6 @@ selectSequence seqs = do {
   return (seqs!!i, removeNth seqs i)
   }
   
-readSequences :: FilePath -> IO Sequences
-readSequences filePath = do
-  content <- readFile filePath
-  return (sanitizeFASTA content)
-  
-sanitizeFASTA :: String -> Sequences
-sanitizeFASTA content = map (filter (/= ',')) relevantLines
-  where ls = map trim (lines content)
-        relevantLines = filter ((/= '>') . head) ls
-        
-removeNth :: [a] -> Int -> [a]
-removeNth xs n = ys ++ tail zs
-  where (ys,zs) = splitAt n xs   
-
-iterateN :: Int -> (a -> a) -> a -> a
-iterateN n f x = iterate f x !! n
-
-matrixMap :: (a -> b) -> [[a]] -> [[b]]
-matrixMap f = map (map f) 
 
 updateSweep :: Gestalt -> Gestalt
 updateSweep g = foldl updateIthSequence g is
@@ -349,15 +273,6 @@ springConstant mis i j k = 1 / (epsilon + variance (map fromIntegral $ zipWith (
         js = selectColumn mis' j
         mis' = removeNth mis k 
 
-selectColumn :: [[a]] -> Index -> [a]
-selectColumn xss i = [xs !! i | xs <- xss]
-
-variance :: (Real b, Floating b, Floating a) => [b] -> a
-variance xs = mean (map (**2) xs) - mean xs ** 2
-
-mean :: (Real a, Fractional b) => [a] -> b
-mean xs = realToFrac (sum xs) / genericLength xs --Thanks, Don Stewart
-
 converge :: Gestalt -> IO Gestalt
 converge g = converge' g (updateAlignment g)
   where converge' g mg = do { g' <- mg
@@ -365,11 +280,7 @@ converge g = converge' g (updateAlignment g)
                                  then return g
                               else converge' g' (updateAlignment g')
                             }
-          
-fixpoint :: (Eq b) => (a -> a) -> a -> (a -> b) -> a
-fixpoint f a p = fst $ head $ dropWhile (\(x,y) -> p x /= p y) $ zip its (tail its)
-  where its = iterate f a
-  
+            
 main = do seqs <- readSequences "data/lexA_e_coli_120.csv"
           mis <- seedMotifs seqs
           let g = Gestalt seqs (replicate 30 [52,53,54])
