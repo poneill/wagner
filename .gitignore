@@ -1,2 +1,5 @@
 SourceGraph
 Main
+*.o
+*.hi
+
