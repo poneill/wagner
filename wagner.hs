@@ -42,11 +42,11 @@ range n = [0..(n-1)]
 log2 :: (Floating a) => a -> a
 log2 = logBase 2
 
---argMax :: (Ord b) => (a -> b) -> [a] -> a
+argMax :: (Ord b) => (a -> b) -> [a] -> a
 
 argMax f = foldl1 (\x x' -> if f x' > f x then x' else x)
 
---argMin :: (Ord b) => (a -> b) -> [a] -> a
+argMin :: (Ord b) => (a -> b) -> [a] -> a
 
 argMin f = foldl1 (\x x' -> if f x' <= f x then x' else x)
   
@@ -130,16 +130,27 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
-potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> VarMatrix -> Float
+potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
-potential seq (i,pssm) pos mi varMatrix = (bindingEnergy + a * stringEnergy)/700
+potential seq (i,pssm) pos mi mis = (bindingEnergy + a * stringEnergy)/700
   where bindingEnergy =printBE $ - (scoreAt pssm seq pos) --bigger is worse
         stringEnergy =printSE $ sum [log $ epsilon + energyFromString j jpos
                            | (j, jpos) <- zip [0..] mi, j /= i]
-        energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral (pos - jpos) ** 2
+        energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
+        varMatrix = varianceMatrix mis
         var j = varMatrix !! i !! j
         a = 0
-
+        muMatrix = meanMatrix mis
+        mu i j = muMatrix !! i !! j
+        
+meanMatrix :: MotifIndices -> [[Float]] --compute resting lengths
+--matrix is symmetric, upper triangular; could just compute half of it
+meanMatrix mis = [[mean [((mi!!i) - (mi!!j)) | mi <- mis]
+                  |i <- motifRange] 
+                 | j <- motifRange]
+  where motifRange = [0..numMotifs - 1]
+        
+        
 -- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
 -- patrifyIthSequence g i = return seqs mis''
 --   where mis = motifIndices g
@@ -170,9 +181,8 @@ assignIthIndex (seqNum,seq) (i,pssm) mis =
   sample positions (\pos ->printEnergy $ exp (- energy pos))
   where end = length seq - length pssm --check this
         positions = [0..end]
-        mi = mis !! seqNum
-        energy pos =printPotential $ potential seq (i,pssm) pos mi varMatrix
-        varMatrix = varianceMatrix (delete mi mis)
+        (mi, mis') = separate seqNum mis
+        energy pos = printPotential $ potential seq (i,pssm) pos mi mis'
     
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
@@ -304,7 +314,7 @@ ivanSweep :: Gestalt -> IO Gestalt
 ivanSweep g = foldl (\mg i -> mg >>= \g -> ivanizeIthSequence g i) (return g) is
   where is = (range . length . motifIndices) g
         
---springConstant :: MotifIndices -> Index -> Index -> 
+springConstant :: MotifIndices -> Index -> Index -> Int -> Float
 springConstant mis i j k = 1 / (epsilon + variance (map fromIntegral $ zipWith (-) is js))
   where is = selectColumn mis' i
         js = selectColumn mis' j
@@ -313,11 +323,11 @@ springConstant mis i j k = 1 / (epsilon + variance (map fromIntegral $ zipWith (
 selectColumn :: [[a]] -> Index -> [a]
 selectColumn xss i = [xs !! i | xs <- xss]
 
-variance :: (Floating a) => [a] -> a
+variance :: (Real b, Floating b, Floating a) => [b] -> a
 variance xs = mean (map (**2) xs) - mean xs ** 2
 
-mean :: (Fractional a) => [a] -> a
-mean xs = sum xs / fromIntegral (length xs)
+mean :: (Real a, Fractional b) => [a] -> b
+mean xs = realToFrac (sum xs) / genericLength xs --Thanks, Don Stewart
 
 converge :: Gestalt -> IO Gestalt
 converge g = converge' g (updateAlignment g)
