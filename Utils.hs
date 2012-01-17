@@ -3,6 +3,7 @@ module Utils where
 import Data.List
 import Data.Char
 import System.Random
+import Debug.Trace
 
 range :: (Integral a) => a -> [a]
 range n = [0..(n-1)]
@@ -45,12 +46,14 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 
 --sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
 -- Pick an a according to a likelihood function (and an implicit
--- constant k)
+-- greediness constant k)
+sample' as f r | trace ("sample'"++ " " ++ show as++ " ") False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
-                    faks =  map (\a -> f a ** k) as
-                    tups = zip as (scanl1 (+) (map (/z) faks))
+                    faks =  map (\a -> (f a) ** k) as
                     z = sum faks
+                    normFaks = map (/z) faks
+                    tups = zip as (scanl1 (+) normFaks)
 
 separate ::  Int -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
