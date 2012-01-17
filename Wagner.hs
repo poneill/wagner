@@ -39,9 +39,11 @@ indexOf :: Char -> Index
 indexOf base = unpack $ lookup base (zip delta [0..3])
   where unpack (Just x) = x
 
-gestaltEntropy :: Gestalt -> Float
-gestaltEntropy g = sum $ map motifEntropy motifs
+gestaltEntropies :: Gestalt -> [Float]
+gestaltEntropies g = map motifEntropy motifs
   where motifs = recoverMotifs g
+gestaltEntropy :: Gestalt -> Float
+gestaltEntropy g = sum $ gestaltEntropies g
         
 motifEntropy :: Motif -> Float
 motifEntropy motif = sum $ map colEntropy motif'
@@ -203,7 +205,7 @@ sa (Gestalt seqs mis) = do
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
 
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
-  sample positions (\pos ->printEnergy $ exp (- energy pos))
+  sample positions (\pos ->printLikelihood $ exp (- energy pos))--via Boltzmann distribution
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
@@ -307,21 +309,21 @@ converge g = converge' g (updateAlignment g)
                             }
 -- debugging
 
---printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
+printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
 printPotential x = x
---printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
+printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
 printTubs xs = xs
---printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+printSE x | trace ("printSE"++ " " ++ show x) False = undefined
 printSE x = x
 printFaks xs | trace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
 printFaks xs = xs
---printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
+printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
 printZ xs = xs
---printEnergy x | trace ("printEnergy"++ " " ++ show x) False = undefined
-printEnergy x = x
---printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+printLikelihood x | trace ("printLikelihood"++ " " ++ show x) False = undefined
+printLikelihood x = x
+printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
 printEFS x = x
---printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+printBE x | trace ("printBE"++ " " ++ show x) False = undefined
 printBE x = x
 
 
