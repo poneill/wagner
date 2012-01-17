@@ -139,7 +139,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)/700
-  where bindingEnergy = printBE $ - (scoreAt pssm seq pos) --bigger is worse
+  where bindingEnergy = printBE $ bindingEnergyAt pssm seq i --bigger is worse
         stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos
                            | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
