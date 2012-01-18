@@ -85,11 +85,11 @@ sanitizeFASTA content = map (filter (/= ',')) relevantLines
 removeNth ::  [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
-
-iterateN ::  Int -> (a -> a) -> a -> a
-iterateN n f x = iterate f x !! n'
-  where n' = (fromIntegral n)
         
+iterateN :: Int -> (a -> a) -> a -> a 
+iterateN 0 f x = x
+iterateN n f x = iterateN (n - 1) f (f x)
+
 matrixMap :: (a -> b) -> [[a]] -> [[b]]
 matrixMap f = map (map f) 
 
