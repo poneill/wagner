@@ -94,12 +94,19 @@ score :: PSSM -> Sequence -> Float -- assumes sequence is as long as pssm
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
 
 scoreAt :: PSSM -> Sequence -> Index -> Float
-scoreAt pssm seq i = score pssm (drop i seq)
+scoreAt pssm seq i = printScoreAt $ score pssm (drop i seq)
 
-bindingEnergyAt :: PSSM -> Sequence -> Index -> Float
-bindingEnergyAt pssm seq i = exp (- score)
+printScoreAt x | trace ("printScoreAt"++ " " ++ show x) False = undefined
+printScoreAt x = x
+
+bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
+bindingEnergyAt pssm seq i = printBindingEnergyAt $ reverseSigmoid score
   where score = scoreAt pssm seq i
 
+reverseSigmoid x = 1 / (1 + exp (x))
+
+printBindingEnergyAt x | trace ("printBindingEnergyAt"++ " " ++ show x) False = undefined
+printBindingEnergyAt x = x
 maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
   where scores = scoreSequence pssm seq
@@ -140,10 +147,11 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
-potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)/700
-  where bindingEnergy = printBE $ bindingEnergyAt pssm seq i --bigger is worse
-        stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos
-                           | (j, jpos) <- zip [0..] mi, j /= i]
+--higher potential means lower probability state
+potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)
+  where bindingEnergy = printBE $ bindingEnergyAt pssm seq pos --bigger is worse
+        stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos --ditto
+                                     | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
         var j = varMatrix !! i !! j
         a = 0
