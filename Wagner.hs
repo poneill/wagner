@@ -96,17 +96,12 @@ score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
 scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = printScoreAt $ score pssm (drop i seq)
 
-printScoreAt x | trace ("printScoreAt"++ " " ++ show x) False = undefined
-printScoreAt x = x
-
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
 bindingEnergyAt pssm seq i = printBindingEnergyAt $ reverseSigmoid score
   where score = scoreAt pssm seq i
 
 reverseSigmoid x = 1 / (1 + exp (x))
 
-printBindingEnergyAt x | trace ("printBindingEnergyAt"++ " " ++ show x) False = undefined
-printBindingEnergyAt x = x
 maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
   where scores = scoreSequence pssm seq
@@ -317,27 +312,28 @@ converge g = converge' g (updateAlignment g)
                             }
 -- debugging
 
-printPotential x | trace ("printPotential"++ " " ++ show x) False = undefined
+debugging = False
+myTrace st x
+  | debugging = trace st x
+  | otherwise = x
+
+--printPotential x | myTrace ("printPotential"++ " " ++ show x) False = undefined
 printPotential x = x
-printTubs xs | trace ("printTubs"++ " " ++ show xs) False = undefined
+--printTubs xs | myTrace ("printTubs"++ " " ++ show xs) False = undefined
 printTubs xs = xs
-printSE x | trace ("printSE"++ " " ++ show x) False = undefined
+--printSE x | myTrace ("printSE"++ " " ++ show x) False = undefined
 printSE x = x
-printFaks xs | trace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
+--printFaks xs | myTrace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
 printFaks xs = xs
-printZ xs | trace ("printZ"++ " " ++ show xs) False = undefined
+printZ xs | myTrace ("printZ"++ " " ++ show xs) False = undefined
 printZ xs = xs
-printLikelihood x | trace ("printLikelihood"++ " " ++ show x) False = undefined
+--printLikelihood x | myTrace ("printLikelihood"++ " " ++ show x) False = undefined
 printLikelihood x = x
-printEFS x | trace ("printEFS"++ " " ++ show x) False = undefined
+--printEFS x | myTrace ("printEFS"++ " " ++ show x) False = undefined
 printEFS x = x
-printBE x | trace ("printBE"++ " " ++ show x) False = undefined
+--printBE x | myTrace ("printBE"++ " " ++ show x) False = undefined
 printBE x = x
-
-
-
-
-
-
-
-
+--printScoreAt x | trace ("printScoreAt"++ " " ++ show x) False = undefined
+printScoreAt x = x
+--printBindingEnergyAt x | trace ("printBindingEnergyAt"++ " " ++ show x) False = undefined
+printBindingEnergyAt x = x
