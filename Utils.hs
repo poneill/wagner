@@ -47,19 +47,19 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 --sample' :: (Ord b, Floating b) => [a] -> (a -> b) -> b -> a
 -- Pick an a according to a likelihood function (and an implicit
 -- greediness constant k)
-sample' as f r | trace ("sample'"++ " " ++ show as++ " ") False = undefined
+--sample' as f r | trace ("printsample'"++ " " ++ show as++ " ") False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 1
+              where k = 100
                     faks =  printFaks $ map (\a -> (f a) ** k) as
                     z = sum faks
                     normFaks = printNormFaks $ map (/z) faks
                     tups = printTups $ zip as (scanl1 (+) normFaks)
 
-printFaks x | trace ("printFaks"++ " " ++ show x) False = undefined
+--printFaks x | trace ("printFaks"++ " " ++ show x) False = undefined
 printFaks x = x
-printNormFaks x | trace ("printNormFaks"++ " " ++ show x) False = undefined
+--printNormFaks x | trace ("printNormFaks"++ " " ++ show x) False = undefined
 printNormFaks x = x
-printTups x | trace ("printTups"++ " " ++ show x) False = undefined
+--printTups x | trace ("printTups"++ " " ++ show x) False = undefined
 printTups x = x 
 
 
