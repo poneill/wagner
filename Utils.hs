@@ -50,10 +50,18 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 sample' as f r | trace ("sample'"++ " " ++ show as++ " ") False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
-                    faks =  map (\a -> (f a) ** k) as
+                    faks =  printFaks $ map (\a -> (f a) ** k) as
                     z = sum faks
-                    normFaks = map (/z) faks
-                    tups = zip as (scanl1 (+) normFaks)
+                    normFaks = printNormFaks $ map (/z) faks
+                    tups = printTups $ zip as (scanl1 (+) normFaks)
+
+printFaks x | trace ("printFaks"++ " " ++ show x) False = undefined
+printFaks x = x
+printNormFaks x | trace ("printNormFaks"++ " " ++ show x) False = undefined
+printNormFaks x = x
+printTups x | trace ("printTups"++ " " ++ show x) False = undefined
+printTups x = x 
+
 
 separate ::  Int -> [a] -> (a,[a])
 separate i seqs = (seqs !! i, removeNth seqs i)
