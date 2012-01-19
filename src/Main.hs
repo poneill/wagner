@@ -10,7 +10,7 @@ main = do args <- getArgs
                 "sa" -> sa
                 "patrify" -> patrify
                 "patrifySweep" -> patrifySweep
-          seqs <- readSequences "data/lexA_e_coli_120.csv"
+          seqs <- readSequences "../data/lexA_e_coli_120.csv"
           mis <- seedMotifs seqs
           let g = Gestalt seqs mis
           g' <- iterateN' iterations (>>= f) (return g)
