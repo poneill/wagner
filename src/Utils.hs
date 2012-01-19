@@ -49,8 +49,8 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 -- greediness constant k)
 --sample' as f r | trace ("printsample'"++ " " ++ show as++ " ") False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
-              where k = 100
-                    faks =  printFaks $ map (\a -> (f a) ** k) as
+              where k = 1
+                    faks =  printFaks $ map (\a -> f a ** k) as
                     z = sum faks
                     normFaks = printNormFaks $ map (/z) faks
                     tups = printTups $ zip as (scanl1 (+) normFaks)
@@ -85,6 +85,14 @@ sanitizeFASTA content = map (filter (/= ',')) relevantLines
 removeNth ::  [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
+
+iterateN' ::  Int -> (a -> a) -> a -> a
+iterateN' 0 f x = x
+iterateN' n f x = x `seq` iterateN' (n - 1) f (f x)
+
+iterateN ::  Int -> (a -> a) -> a -> a
+iterateN 0 f x = x
+iterateN n f x = x `seq` iterateN (n - 1) f (f x)
         
 iterateN :: Int -> (a -> a) -> a -> a 
 iterateN 0 f x = x

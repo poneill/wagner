@@ -35,9 +35,12 @@ epsilon = 1/100
 numMotifs = 3
 motifLength = 16
 uniformProbs = replicate 4 0.25
+
 indexOf :: Char -> Index
-indexOf base = unpack $ lookup base (zip delta [0..3])
-  where unpack (Just x) = x
+indexOf 'A' = 0
+indexOf 'C' = 1
+indexOf 'G' = 2
+indexOf 'T' = 3
 
 gestaltEntropies :: Gestalt -> [Float]
 gestaltEntropies g = map motifEntropy motifs
@@ -51,12 +54,12 @@ motifEntropy motif = sum $ map colEntropy motif'
 
 colEntropy :: (Ord a) => [a] -> Float
 colEntropy col = (-1) * sum (map (\x -> x * log2 (x + epsilon)) freqs)
-  where freqs =  [(fromIntegral count)/ (fromIntegral len) | count <- counts]
+  where freqs =  [fromIntegral count / fromIntegral len | count <- counts]
         counts = getCounts col
         len = length col
 
 entropyEpsilon = 10*10e-10
-entropy xs = (- 1) * (sum $ (map (\x -> x * log2 (x + entropyEpsilon)) xs))
+entropy xs = (- 1) * sum (map (\x -> x * log2 (x + entropyEpsilon)) xs)
 
 columnProbs :: Sequence -> [Float]
 columnProbs column = [epsilon + fromIntegral (numBases base column) / n 
@@ -97,10 +100,11 @@ scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = printScoreAt $ score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = printBindingEnergyAt $ reverseSigmoid score
+bindingEnergyAt pssm seq i = printBindingEnergyAt $ scoreToEnergy score
   where score = scoreAt pssm seq i
 
-reverseSigmoid x = 1 / (1 + exp (x))
+--reverseSigmoid x = 1 / (1 + exp (x))
+scoreToEnergy x = - x
 
 maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
@@ -143,7 +147,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)
+potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * stringEnergy
   where bindingEnergy = printBE $ bindingEnergyAt pssm seq pos --bigger is worse
         stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos --ditto
                                      | (j, jpos) <- zip [0..] mi, j /= i]
@@ -155,22 +159,28 @@ potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)
         
 meanMatrix :: MotifIndices -> [[Float]] --compute resting lengths
 --matrix is symmetric, upper triangular; could just compute half of it
-meanMatrix mis = [[mean [((mi!!i) - (mi!!j)) | mi <- mis]
+meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
                   |i <- motifRange] 
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
         
-        
--- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
--- patrifyIthSequence g i = return seqs mis''
---   where mis = motifIndices g
---         seqs = sequences g
---         (mi,mis') = separate i mis
---         (seq,seqs') = separate i seqs
---         pssms' = recoverPSSMs (Gestalt seqs' mis')
---         dm = distanceMatrix i mis'
---         mis'' = patrifySequence seq 
---         varMatrix = varianceMatrix mis
+patrifyIthSeq :: Gestalt -> Int -> IO Gestalt
+patrifyIthSeq (Gestalt seqs mis) seqNum = do
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  let varMatrix = varianceMatrix (delete mi mis)
+  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
+  let  mi' = replaceAt motifNum i' mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+
+patrifySweep :: Gestalt -> IO Gestalt
+patrifySweep g = foldl' f (return g) is
+  where numSeqs = length $ motifIndices g
+        is = [0..numSeqs - 1]
+        f mg i = mg >>= \g -> patrifyIthSeq g i
         
 patrify :: Gestalt -> IO Gestalt
 patrify (Gestalt seqs mis) = do
@@ -208,12 +218,14 @@ sa (Gestalt seqs mis) = do
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
 
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
-  sample positions (\pos ->printLikelihood $ exp (- energy pos))--via Boltzmann distribution
+  sample positions likelihood
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
         energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
-    
+        likelihood pos = exp (- energy pos) --via Boltzmann distribution
+
+        
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
     
@@ -265,7 +277,7 @@ recoverPSSM mic seqs = makePSSM (recoverMotif mic seqs) uniformProbs
 
 recoverNthPSSM :: Sequences -> MotifIndices -> Int -> PSSM
 recoverNthPSSM seqs mis n = recoverPSSM mic seqs 
-  where mic = (transpose mis) !! n
+  where mic = transpose mis !! n
 
 recoverPSSMs :: Gestalt -> [PSSM]
 recoverPSSMs gestalt = map (`recoverPSSM` seqs) mics
@@ -276,7 +288,7 @@ recoverMotif :: MotifIndexCol -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
 recoverMotifs :: Gestalt -> [Motif]
-recoverMotifs g = map (\mic -> recoverMotif mic seqs) mics
+recoverMotifs g = map (`recoverMotif` seqs) mics
   where mics = transpose $ motifIndices g
         seqs = sequences g
         
