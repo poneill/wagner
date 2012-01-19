@@ -97,10 +97,11 @@ scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = printScoreAt $ score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = printBindingEnergyAt $ reverseSigmoid score
+bindingEnergyAt pssm seq i = printBindingEnergyAt $ scoreToEnergy score
   where score = scoreAt pssm seq i
 
-reverseSigmoid x = 1 / (1 + exp (x))
+--reverseSigmoid x = 1 / (1 + exp (x))
+scoreToEnergy x = - x
 
 maxResponseOverSeq :: PSSM -> Sequence -> Index
 maxResponseOverSeq pssm seq = head $ elemIndices (maximum scores) scores
@@ -160,17 +161,23 @@ meanMatrix mis = [[mean [((mi!!i) - (mi!!j)) | mi <- mis]
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
         
-        
--- patrifyIthSequence :: Gestalt -> Int -> IO Gestalt
--- patrifyIthSequence g i = return seqs mis''
---   where mis = motifIndices g
---         seqs = sequences g
---         (mi,mis') = separate i mis
---         (seq,seqs') = separate i seqs
---         pssms' = recoverPSSMs (Gestalt seqs' mis')
---         dm = distanceMatrix i mis'
---         mis'' = patrifySequence seq 
---         varMatrix = varianceMatrix mis
+patrifyIthSeq :: Gestalt -> Int -> IO Gestalt
+patrifyIthSeq (Gestalt seqs mis) seqNum = do
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  let varMatrix = varianceMatrix (delete mi mis)
+  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
+  let  mi' = replaceAt motifNum i' mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+
+patrifySweep :: Gestalt -> IO Gestalt
+patrifySweep g = foldl' f (return g) is
+  where numSeqs = length $ motifIndices g
+        is = [0..numSeqs - 1]
+        f = (\mg i -> mg >>= (\g -> patrifyIthSeq g i))
         
 patrify :: Gestalt -> IO Gestalt
 patrify (Gestalt seqs mis) = do
@@ -208,12 +215,14 @@ sa (Gestalt seqs mis) = do
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
 
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
-  sample positions (\pos ->printLikelihood $ exp (- energy pos))--via Boltzmann distribution
+  sample positions likelihood
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
         energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
-    
+        likelihood pos = exp (- energy pos) --via Boltzmann distribution
+
+        
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
     
