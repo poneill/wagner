@@ -35,9 +35,12 @@ epsilon = 1/100
 numMotifs = 3
 motifLength = 16
 uniformProbs = replicate 4 0.25
+
 indexOf :: Char -> Index
-indexOf base = unpack $ lookup base (zip delta [0..3])
-  where unpack (Just x) = x
+indexOf 'A' = 0
+indexOf 'C' = 1
+indexOf 'G' = 2
+indexOf 'T' = 3
 
 gestaltEntropies :: Gestalt -> [Float]
 gestaltEntropies g = map motifEntropy motifs
