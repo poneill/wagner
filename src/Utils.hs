@@ -50,7 +50,7 @@ sample as f = do { r <- randomRIO (0.0,1.0)
 --sample' as f r | trace ("printsample'"++ " " ++ show as++ " ") False = undefined
 sample' as f r = fst $ argMin snd $ filter ((>= r) . snd)  tups
               where k = 1
-                    faks =  printFaks $ map (\a -> (f a) ** k) as
+                    faks =  printFaks $ map (\a -> f a ** k) as
                     z = sum faks
                     normFaks = printNormFaks $ map (/z) faks
                     tups = printTups $ zip as (scanl1 (+) normFaks)
