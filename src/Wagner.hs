@@ -51,12 +51,12 @@ motifEntropy motif = sum $ map colEntropy motif'
 
 colEntropy :: (Ord a) => [a] -> Float
 colEntropy col = (-1) * sum (map (\x -> x * log2 (x + epsilon)) freqs)
-  where freqs =  [(fromIntegral count)/ (fromIntegral len) | count <- counts]
+  where freqs =  [fromIntegral count / fromIntegral len | count <- counts]
         counts = getCounts col
         len = length col
 
 entropyEpsilon = 10*10e-10
-entropy xs = (- 1) * (sum $ (map (\x -> x * log2 (x + entropyEpsilon)) xs))
+entropy xs = (- 1) * sum (map (\x -> x * log2 (x + entropyEpsilon)) xs)
 
 columnProbs :: Sequence -> [Float]
 columnProbs column = [epsilon + fromIntegral (numBases base column) / n 
@@ -144,7 +144,7 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)
+potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * stringEnergy
   where bindingEnergy = printBE $ bindingEnergyAt pssm seq pos --bigger is worse
         stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos --ditto
                                      | (j, jpos) <- zip [0..] mi, j /= i]
@@ -156,7 +156,7 @@ potential seq (i,pssm) pos mi mis varMatrix = (bindingEnergy + a * stringEnergy)
         
 meanMatrix :: MotifIndices -> [[Float]] --compute resting lengths
 --matrix is symmetric, upper triangular; could just compute half of it
-meanMatrix mis = [[mean [((mi!!i) - (mi!!j)) | mi <- mis]
+meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
                   |i <- motifRange] 
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
@@ -177,7 +177,7 @@ patrifySweep :: Gestalt -> IO Gestalt
 patrifySweep g = foldl' f (return g) is
   where numSeqs = length $ motifIndices g
         is = [0..numSeqs - 1]
-        f = (\mg i -> mg >>= (\g -> patrifyIthSeq g i))
+        f mg i = mg >>= \g -> patrifyIthSeq g i
         
 patrify :: Gestalt -> IO Gestalt
 patrify (Gestalt seqs mis) = do
@@ -274,7 +274,7 @@ recoverPSSM mic seqs = makePSSM (recoverMotif mic seqs) uniformProbs
 
 recoverNthPSSM :: Sequences -> MotifIndices -> Int -> PSSM
 recoverNthPSSM seqs mis n = recoverPSSM mic seqs 
-  where mic = (transpose mis) !! n
+  where mic = transpose mis !! n
 
 recoverPSSMs :: Gestalt -> [PSSM]
 recoverPSSMs gestalt = map (`recoverPSSM` seqs) mics
@@ -285,7 +285,7 @@ recoverMotif :: MotifIndexCol -> Sequences -> Motif
 recoverMotif = zipWith (\m s -> (take motifLength . drop m) s)
 
 recoverMotifs :: Gestalt -> [Motif]
-recoverMotifs g = map (\mic -> recoverMotif mic seqs) mics
+recoverMotifs g = map (`recoverMotif` seqs) mics
   where mics = transpose $ motifIndices g
         seqs = sequences g
         
