@@ -25,11 +25,13 @@ type Index = Int --An index is a position in a sequence
 type Name = Int --A name is a tag denoting a motif element.
 type NamedPSSM = (Name, PSSM)
 type VarMatrix = [[Float]]
+type Update = (Gestalt -> IO Gestalt)
 data Gestalt = Gestalt { sequences :: Sequences 
                        , motifIndices :: MotifIndices
                        }
              deriving Show
   
+
 delta = "ACGT"
 epsilon = 1/100
 numMotifs = 3
