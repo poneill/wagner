@@ -153,7 +153,7 @@ potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * stringEnergy
                                      | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
         var j = varMatrix !! i !! j
-        a = 0
+        a = 0.01
         muMatrix = meanMatrix mis
         mu i j = muMatrix !! i !! j
         
@@ -207,16 +207,21 @@ sa (Gestalt seqs mis) = do
   let curPos = mi !! motifNum
   let curPot = potential seq (motifNum,looPSSM) curPos mi mis varMatrix
   let proPot = potential seq (motifNum,looPSSM) proPos mi mis varMatrix
-  r <- randomRIO (0.0,1.0)
-  let accept = (proPot < curPot) || (r < curPot / proPot)
-  let nextPos = if accept then proPos else curPos
+  acceptProposed <- accept' curPot proPot
+  let nextPos = if acceptProposed then proPos else curPos
   let  mi' = replaceAt motifNum nextPos mi
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
 
-
+accept' :: Float -> Float -> IO Bool --old 
+accept' current proposed = do
+  r <- randomRIO (0.0,1.0)
+  -- we have already mapped energies into probabilities at this point,
+  -- so take the ratio rather than exp (current - proposed)
+  let acceptProposed = (proposed < current) || (r < current / proposed) 
+  return acceptProposed
+      
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
-
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
   sample positions likelihood
   where end = length seq - length pssm --check this
@@ -225,7 +230,7 @@ assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
         energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
         likelihood pos = exp (- energy pos) --via Boltzmann distribution
 
-        
+
 toMotifIndex :: [NamedPSSM] -> MotifIndex
 toMotifIndex = map fst . sortWith snd
     
@@ -333,7 +338,7 @@ myTrace st x
 printPotential x = x
 --printTubs xs | myTrace ("printTubs"++ " " ++ show xs) False = undefined
 printTubs xs = xs
---printSE x | myTrace ("printSE"++ " " ++ show x) False = undefined
+printSE x | myTrace ("printSE"++ " " ++ show x) False = undefined
 printSE x = x
 --printFaks xs | myTrace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
 printFaks xs = xs
@@ -343,7 +348,7 @@ printZ xs = xs
 printLikelihood x = x
 --printEFS x | myTrace ("printEFS"++ " " ++ show x) False = undefined
 printEFS x = x
---printBE x | myTrace ("printBE"++ " " ++ show x) False = undefined
+printBE x | myTrace ("printBE"++ " " ++ show x) False = undefined
 printBE x = x
 --printScoreAt x | trace ("printScoreAt"++ " " ++ show x) False = undefined
 printScoreAt x = x
