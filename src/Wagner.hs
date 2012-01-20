@@ -35,7 +35,7 @@ data Gestalt = Gestalt { sequences :: Sequences
 delta = "ACGT"
 epsilon = 1/100
 numMotifs = 3
-motifLength = 16
+motifLength = 6
 uniformProbs = replicate 4 0.25
 
 indexOf :: Char -> Index
@@ -43,6 +43,13 @@ indexOf 'A' = 0
 indexOf 'C' = 1
 indexOf 'G' = 2
 indexOf 'T' = 3
+
+spacer = motifLength * 1
+spacerPenalty = 100
+assignSpacerPenalty :: Index -> Index -> Float
+assignSpacerPenalty i j
+  | abs (i - j) < spacer = spacerPenalty
+  | otherwise = 0
 
 gestaltEntropies :: Gestalt -> [Float]
 gestaltEntropies g = map motifEntropy motifs
@@ -149,15 +156,16 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * stringEnergy
+potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * springEnergy
   where bindingEnergy = printBE $ bindingEnergyAt pssm seq pos --bigger is worse
-        stringEnergy = printSE $ sum [log $ epsilon + energyFromString j jpos --ditto
+        springEnergy = printSE $ sum [log $ epsilon + energyFromSpring j jpos --ditto
                                      | (j, jpos) <- zip [0..] mi, j /= i]
-        energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
+        energyFromSpring j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2 * assignSpacerPenalty pos jpos
         var j = varMatrix !! i !! j
         a = 0.1
         muMatrix = meanMatrix mis
         mu i j = muMatrix !! i !! j
+
         
 meanMatrix :: MotifIndices -> [[Float]] --compute resting lengths
 --matrix is symmetric, upper triangular; could just compute half of it
