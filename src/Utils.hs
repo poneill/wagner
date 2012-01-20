@@ -93,10 +93,11 @@ iterateN' n f x = x `seq` iterateN' (n - 1) f (f x)
 iterateN ::  Int -> (a -> a) -> a -> a
 iterateN 0 f x = x
 iterateN n f x = x `seq` iterateN (n - 1) f (f x)
-
--- iterateN n f x = iterate f x !! n'
---   where n' = (fromIntegral n)
         
+iterateN :: Int -> (a -> a) -> a -> a 
+iterateN 0 f x = x
+iterateN n f x = iterateN (n - 1) f (f x)
+
 matrixMap :: (a -> b) -> [[a]] -> [[b]]
 matrixMap f = map (map f) 
 
