@@ -128,7 +128,7 @@ updateAlignment gestalt = do { let seqs = sequences gestalt
 
 {- in Ivanization, we update the placements of the motif indices for a
 given sequence.  We do this by iteratively adding motif indices,
-sampled randomly according to their maxResponseOverPSSM and their
+sampled randomly according to their maxResponseOverSeq and their
 z-score.-}
 
 ivanizeIthSequence :: Gestalt -> Int -> IO Gestalt
@@ -194,6 +194,20 @@ patrify (Gestalt seqs mis) = do
   let  mi' = replaceAt motifNum i' mi
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
+
+greedy :: Gestalt -> IO Gestalt 
+greedy (Gestalt seqs mis) = do
+  seqNum <- randomRIO (0, length seqs - 1)
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let varMatrix = varianceMatrix (delete mi mis)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  let nextPos = maxResponseOverSeq looPSSM seq
+  let  mi' = replaceAt motifNum nextPos mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+
 
 sa :: Gestalt -> IO Gestalt
 sa (Gestalt seqs mis) = do
