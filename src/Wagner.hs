@@ -153,7 +153,7 @@ potential seq (i,pssm) pos mi mis varMatrix = bindingEnergy + a * stringEnergy
                                      | (j, jpos) <- zip [0..] mi, j /= i]
         energyFromString j jpos =printEFS $ 1/ (epsilon + var j) * fromIntegral ((pos - jpos) - 1) ** 2
         var j = varMatrix !! i !! j
-        a = 0.01
+        a = 0.1
         muMatrix = meanMatrix mis
         mu i j = muMatrix !! i !! j
         
@@ -176,12 +176,30 @@ patrifyIthSeq (Gestalt seqs mis) seqNum = do
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
 
+greedyIthSeq :: Gestalt -> Int -> IO Gestalt
+greedyIthSeq (Gestalt seqs mis) seqNum = do
+  let seq = seqs !! seqNum      
+  let mi = mis !! seqNum      
+  motifNum <- randomRIO (0, numMotifs - 1)
+  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
+  let varMatrix = varianceMatrix (delete mi mis)
+  let nextPos = maxResponseOverSeq looPSSM seq
+  let mi' = replaceAt motifNum nextPos mi
+  let mis' = replaceAt seqNum mi' mis
+  return (Gestalt seqs mis')
+
 patrifySweep :: Gestalt -> IO Gestalt
 patrifySweep g = foldl' f (return g) is
   where numSeqs = length $ motifIndices g
         is = [0..numSeqs - 1]
         f mg i = mg >>= \g -> patrifyIthSeq g i
         
+greedySweep :: Gestalt -> IO Gestalt
+greedySweep g = foldl' f (return g) is
+  where numSeqs = length $ motifIndices g
+        is = [0..numSeqs - 1]
+        f mg i = mg >>= \g -> greedyIthSeq g i
+
 patrify :: Gestalt -> IO Gestalt
 patrify (Gestalt seqs mis) = do
   seqNum <- randomRIO (0, length seqs - 1)
@@ -334,13 +352,23 @@ springConstant mis i j k = 1 / (epsilon + variance (map fromIntegral $ zipWith (
         js = selectColumn mis' j
         mis' = removeNth mis k 
 
-converge :: Gestalt -> IO Gestalt
-converge g = converge' g (updateAlignment g)
+converge :: Gestalt -> (Gestalt -> IO Gestalt) -> IO Gestalt
+converge g f = converge' g (f g)
   where converge' g mg = do { g' <- mg
                             ; if motifIndices g == motifIndices g'
                                  then return g
-                              else converge' g' (updateAlignment g')
+                              else converge' g' (f g')
                             }
+                         
+--convergeCyclic :: Gestalt -> (Gestalt -> IO Gestalt) -> Int -> IO Gestalt
+convergeCyclic g f burnIn = converge' burnedIn []
+  where converge' mg table = do { g' <- mg
+                                ; let mis = motifIndices g'
+                                ; if mis `elem` trace (show $ length table) table
+                                  then return g'
+                                  else converge' (f g') (mis:table)
+                                }
+        burnedIn = iterateN burnIn (>>= f) (return g)
 -- debugging
 
 debugging = False
