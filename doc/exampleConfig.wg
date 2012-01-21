@@ -1,0 +1,11 @@
+# Input options
+data: lexA_e_coli_120.csv # assumed to live in data folder
+method: greedy
+iterations: converge # or N
+
+# Output option defaults:
+# number of iterations performed
+# Information Content: Total and per motif
+# Motif Indices
+# Motifs
+
