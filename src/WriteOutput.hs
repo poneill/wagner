@@ -6,10 +6,19 @@ import ParseConfig
 import Wagner 
 import Data.String.Utils
 
-writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> IO ()
-writeOutput g config (tick,tock) = writeFile fp outputString 
+writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> Bool -> IO ()
+writeOutput g config (tick,tock) quiet = do 
+  let outputString = prepareOutput g config (tick,tock)
+  let cf = configFile config
+  let fp = makeFileName cf tick
+  if not quiet 
+    then putStrLn outputString
+    else return () 
+  writeFile fp outputString 
+
+prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
+prepareOutput g config (tick,tock) = outputString 
   where cf = configFile config
-        fp = makeFileName cf tick
         outputString = unlines [configString, timeString, motifString]
         configString = formatConfigFile $ cf
         timeString = formatTime tick tock
@@ -27,7 +36,9 @@ formatTime :: ClockTime -> ClockTime -> String
 formatTime tick tock = unlines [timeBegan, timeFinished, timeTook]
   where timeBegan =    "Simulation began at: " ++ show tick
         timeFinished = "Simulation ended at: " ++ show tock
-        timeTook = "Simulation took: " ++ timeDiffToString diff
+        timeTook = "Simulation took: " ++ finalDiff
+        finalDiff = if length stringDiff > 0 then stringDiff else "0 secs"
+        stringDiff = timeDiffToString diff
         diff = diffClockTimes tock tick
   
 formatMotifs :: Gestalt -> String
