@@ -89,7 +89,10 @@ removeNth xs n = ys ++ tail zs
 iterateN' ::  Int -> (a -> a) -> a -> a
 iterateN' 0 f x = x
 iterateN' n f x = x `seq` iterateN' (n - 1) f (f x)
-        
+
+iterateNverbose ::  Int -> (a -> a) -> a -> (a,Int)
+iterateNverbose n f x = (iterateN' n f x, n)
+
 iterateN :: Int -> (a -> a) -> a -> a 
 iterateN 0 f x = x
 iterateN n f x = iterateN (n - 1) f (f x)
