@@ -1,46 +1,69 @@
-module ParseConfig where
-
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module ParseConfig (parseConfig) where
 import Data.Monoid
 import Data.String.Utils
 import Wagner
 import Data.List
 
-data ConfigData = ConfigData { dataFile :: FilePath
-                                , methodName :: String
-                                , convergence :: Bool
-                                , iterations :: Int
-                                , logIterations :: Bool
-                                , logMotifIndices :: Bool
-                                , logMotifs :: Bool
-                                }
-                  deriving (Show)
-                           
-defaultConfig = ConfigData { dataFile = "../data/lexA_e_coli_120.csv"
-                           , methodName = "greedy"
-                           , convergence = True
-                           , iterations = 0
-                           , logIterations = True
-                           , logMotifIndices = True
-                           , logMotifs = True
-                           }
-  
---parseConfig :: FilePath -> IO ConfigData
---parseConfig fp = do keyVals <- fmap (tableFromConfig) $ readFile fp
---                    return defaultConfig { dataFile = 
+type Key = String
+type Value = String
+type Table = [(Key, Value)]
+
+readUpdateTable = [ ("greedy",greedy)
+                  , ("sa",sa)
+                  , ("patrify",patrify)
+                  ]
+
+data Config = Config { dataFile        :: String
+                     , methodName      :: Update
+                     , convergence     :: Bool
+                     , iterations      :: Int
+                     , logIterations   :: Bool
+                     , logMotifIndices :: Bool
+                     , logMotifs       :: Bool
+                     }
+
+                 
+defaultTable =   [ ("dataFile"        , "../data/lexA_e_coli_120.csv")
+                  , ("methodName"      , "greedy")
+                  , ("convergence"     , "True")
+                  , ("iterations"      , "0")
+                  , ("logIterations"   , "True")
+                  , ("logMotifIndices" , "True")
+                  , ("logMotifs"       , "True")
+                  ]
+
+configFromTable :: Table -> Config
+configFromTable table = 
+  Config { dataFile        = extract "dataFile" table
+         , methodName      = fromJust $ lookup fname readUpdateTable
+         , convergence     = read $ extract "convergence" table
+         , iterations      = read $ extract "iterations" table
+         , logIterations   = read $ extract "logIterations" table
+         , logMotifIndices = read $ extract "logMotifIndices" table
+         , logMotifs       = read $ extract "logMotifs" table
+         }
+  where fname = extract "methodName" table
+fromJust (Just x) = x
+
+extract ::String -> Table -> String
+extract keyString table = case lookup keyString table of 
+  (Just val) -> val
+  otherwise  -> extract keyString defaultTable
+    
+parseConfig :: FilePath -> IO Config
+parseConfig fp = fmap (configFromTable . tableFromFile) $ readFile fp
 
 stripComments :: [String] -> [String]
-stripComments = (filter (not . null)) . (map (takeWhile (/='#')))
+stripComments = filter (not . null) . map (takeWhile (/='#'))
         
 --tableFromConfig :: String -> [(String,String)]
---tableFromConfig fileContents = keyValTable . stripComments . lines
+tableFromFile = keyValTable . stripComments . lines
 
+-- addDefaults :: Table -> Table
+-- addDefaults table = table ++ [(k,v) | (k,v) <- defaultConfig, 
+--                               not $ k `elem` map fst table]
 
-keyValTable lines = zipWith (,) keys vals
-  where [keys, vals] = transpose $ map ((map strip) . (split ":")) lines
-
-interpretFunction :: String -> (Gestalt -> IO Gestalt)          
-interpretFunction fname = case fname of
-  "sa" -> sa
-  "patrify" -> patrify
-  "patrifySweep" -> patrifySweep
-  "greedy" -> greedy
+keyValTable :: [String] -> [(String, String)]
+keyValTable lines = zip keys vals
+  where [keys, vals] = transpose $ map (map strip . split ":") lines
