@@ -5,6 +5,7 @@ import Data.List
 import ParseConfig
 import Wagner 
 import Data.String.Utils
+import Control.Monad
 
 writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> IO ()
 writeOutput g config (tick,tock) = do 
@@ -13,18 +14,14 @@ writeOutput g config (tick,tock) = do
   let fp = makeFileName cf tick
   let suppressPrinting = printFlag config
   let suppressLogging = logFlag config
-  if not suppressPrinting
-    then putStrLn outputString
-    else return () 
-  if not suppressLogging 
-    then writeFile fp outputString 
-    else return ()
+  unless (not suppressPrinting) $ putStrLn outputString
+  unless (not suppressLogging) $ writeFile fp outputString 
 
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
 prepareOutput g config (tick,tock) = outputMessage
   where cf = configFile config
         outputMessage = unlines [configLine, timeLine, motifLine, entropyLine, methodLine]
-        configLine = formatConfigFile $ cf
+        configLine = formatConfigFile cf
         timeLine = formatTime tick tock
         motifLine = formatMotifs g
         methodLine = formatMethod config
@@ -32,8 +29,8 @@ prepareOutput g config (tick,tock) = outputMessage
           
 formatEntropy :: Gestalt -> String
 formatEntropy g = unlines [total, perMotif]
-  where total = "Total Entropy: " ++ (show $ gestaltEntropy g)
-        perMotif = "Entropy by Motif: " ++ (unwords $ entropyStrings)
+  where total = "Total Entropy: " ++ show (gestaltEntropy g)
+        perMotif = "Entropy by Motif: " ++ unwords entropyStrings
         entropyStrings = map show (gestaltEntropies g)
         
 formatMethod :: Config -> String 
@@ -54,7 +51,7 @@ makeFileName fp tick = process fp
         addPath = ("../log/" ++)
         addExt = (++ ".log")
         addTimeStamp = (++ tick')
-        tick' = "_" ++ replace " " "_" (show tick)
+        tick' = '_' : replace " " "_" (show tick)
   
 formatConfigFile :: FilePath -> String
 formatConfigFile fp = "Simulation run with config file: " ++ fp
@@ -69,7 +66,7 @@ formatTime tick tock = unlines [timeBegan, timeFinished, timeTook]
         diff = diffClockTimes tock tick
   
 formatMotifs :: Gestalt -> String
-formatMotifs g@(Gestalt seqs mis) = unlines $ map unwords $ untuples
+formatMotifs g@(Gestalt seqs mis) = unlines $ map unwords untuples
   where mis' = mmap (padLeft . show) mis
         motifs' = transpose $ recoverMotifs g
         tuples = zipWith zip mis' motifs'
@@ -80,4 +77,4 @@ mmap :: (a -> b) -> [[a]] -> [[b]]
 mmap f = map (map f)
 
 padLeft :: String -> String
-padLeft str = (replicate (4 - length str) ' ') ++ str
+padLeft str = replicate (4 - length str) ' ' ++ str
