@@ -25,9 +25,15 @@ prepareOutput g config (tick,tock) = outputString
         motifString = formatMotifs g
         
 makeFileName :: FilePath -> ClockTime -> String
-makeFileName fp tick = fp' ++ tick' ++ ".log"
-  where fp' = replace ".wg" "" fp
-        tick' = replace " " "_" (show tick)
+makeFileName fp tick = process fp
+  where process = addPath . addExt . addTimeStamp . removePath . removeExt
+        removePath = replace "../doc/" ""
+        removeExt = replace ".wg" ""
+        fpStripped = (removePath . removeExt) fp
+        addPath = ("../log/" ++)
+        addExt = (++ ".log")
+        addTimeStamp = (++ tick')
+        tick' = "_" ++ replace " " "_" (show tick)
   
 formatConfigFile :: FilePath -> String
 formatConfigFile fp = "Simulation run with config file: " ++ fp
