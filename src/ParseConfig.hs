@@ -4,6 +4,7 @@ import Data.Monoid
 import Data.String.Utils
 import Wagner
 import Data.List
+import System.Environment
 
 type Key = String
 type Value = String
@@ -25,6 +26,8 @@ data Config = Config { dataFile        :: FilePath
                      , logIterations   :: Bool
                      , logMotifIndices :: Bool
                      , logMotifs       :: Bool
+                     , logFlag         :: Bool                       
+                     , printFlag       :: Bool                       
                      }
 
                  
@@ -37,6 +40,8 @@ defaultTable =   [ ("dataFile"         , "../data/lexA_e_coli_120.csv")
                   , ("logIterations"   , "True")
                   , ("logMotifIndices" , "True")
                   , ("logMotifs"       , "True")
+                  , ("logFlag"         , "False")--Set true to /suppress/
+                  , ("logPrint"        , "False")                    
                   ]
 
 configFromTable :: Table -> Config
@@ -50,7 +55,10 @@ configFromTable table =
          , logIterations   = read $ extract "logIterations" table
          , logMotifIndices = read $ extract "logMotifIndices" table
          , logMotifs       = read $ extract "logMotifs" table
+         , logFlag         = read $ extract "logFlag" table
+         , printFlag       = read $ extract "printFlag" table        
          }
+  
   where fname = extract "method" table
 
 fromJust (Just x) = x
@@ -59,10 +67,23 @@ extract ::String -> Table -> String
 extract keyString table = case lookup keyString table of 
   (Just val) -> val
   otherwise  -> extract keyString defaultTable
-    
-parseConfig :: FilePath -> IO Config
-parseConfig fp = fmap (configFromTable . tableFromFile fp) $ readFile fp
+  
+-- pesco's really cheap and simple flags and options (tm)
+clParts = getArgs >>= return . (\(a,b) -> (a,drop 1 b)) . break (=="--")
+getArgs' = clParts >>= \(a,b)-> return ([h:t| h:t<-a, h/='-' || null t] ++ b)
+getFlags = clParts >>= \(a,_)-> return (concat [t| '-':t <- a])
+getFlag x = getFlags >>= return . elem x
+--ends here
 
+parseConfig :: IO Config
+parseConfig = do 
+  args <- getArgs'
+  let configFile = head args
+  flagless <- fmap (configFromTable . tableFromFile configFile) $ readFile configFile
+  noLogging <- getFlag 'l'
+  noPrinting <- getFlag 'p'  
+  return flagless{logFlag = noLogging, printFlag = noPrinting}
+    
 stripComments :: [String] -> [String]
 stripComments = filter (not . null) . map (takeWhile (/='#'))
         

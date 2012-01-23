@@ -6,15 +6,19 @@ import ParseConfig
 import Wagner 
 import Data.String.Utils
 
-writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> Bool -> IO ()
-writeOutput g config (tick,tock) quiet = do 
+writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> IO ()
+writeOutput g config (tick,tock) = do 
   let outputString = prepareOutput g config (tick,tock)
   let cf = configFile config
   let fp = makeFileName cf tick
-  if not quiet 
+  let suppressPrinting = printFlag config
+  let suppressLogging = logFlag config
+  if not suppressPrinting
     then putStrLn outputString
     else return () 
-  writeFile fp outputString 
+  if not suppressLogging 
+    then writeFile fp outputString 
+    else return ()
 
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
 prepareOutput g config (tick,tock) = outputMessage

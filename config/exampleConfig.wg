@@ -2,7 +2,7 @@
 data: lexA_e_coli_120.csv # assumed to live in data folder
 method: greedySweep
 convergence: True
-iterations: 10000 # or N
+iterations: 10 # or N
 
 # Output option defaults:
 # number of iterations performed
