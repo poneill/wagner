@@ -1,27 +1,28 @@
 module Main where
 import Wagner                         
 import Utils
+import ParseConfig 
 import System (getArgs)
 
 main = do args <- getArgs
-          let iterations = read $ head args
-          let functionName = args !! 1
-          let f = interpretFunction functionName
-          seqs <- readSequences "../data/lexA_e_coli_120.csv"
+          let configFile = head args
+          config <- parseConfig configFile
+          let f = (method config)
+          let fname = (methodName config)              
+          seqs <- readSequences (dataFile config)
+          let iterations = (numIterations config) 
+          let converges = (convergence config)
+          let iterLog = logIterations config
+          let misLog = logMotifIndices config              
+          let motifsLog = logMotifs config                            
           mis <- seedMotifs seqs
           let g = Gestalt seqs mis
-          g' <- if iterations > 0
-                then iterateN' iterations (>>= f) (return g)
-                else converge g f
-
+          g' <- if converges
+                then converge g f
+                else iterateN' iterations (>>= f) (return g)
+          print $ fname
+          print iterations
+          print converges
           print $ gestaltEntropy g'
           print $ motifIndices g'
           print $ recoverMotifs g'
-
-
-interpretFunction :: String -> (Gestalt -> IO Gestalt)          
-interpretFunction fname = case fname of
-  "sa" -> sa
-  "patrify" -> patrify
-  "patrifySweep" -> patrifySweep
-  "greedy" -> greedy
