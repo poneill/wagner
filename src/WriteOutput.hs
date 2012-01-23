@@ -19,11 +19,18 @@ writeOutput g config (tick,tock) quiet = do
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
 prepareOutput g config (tick,tock) = outputMessage
   where cf = configFile config
-        outputMessage = unlines [configLine, timeLine, motifLine, methodLine]
+        outputMessage = unlines [configLine, timeLine, motifLine, entropyLine, methodLine]
         configLine = formatConfigFile $ cf
         timeLine = formatTime tick tock
         motifLine = formatMotifs g
         methodLine = formatMethod config
+        entropyLine = formatEntropy g
+          
+formatEntropy :: Gestalt -> String
+formatEntropy g = unlines [total, perMotif]
+  where total = "Total Entropy: " ++ (show $ gestaltEntropy g)
+        perMotif = "Entropy by Motif: " ++ (unwords $ entropyStrings)
+        entropyStrings = map show (gestaltEntropies g)
         
 formatMethod :: Config -> String 
 formatMethod config = unlines [fnameString, howLong]
