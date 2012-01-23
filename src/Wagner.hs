@@ -82,7 +82,7 @@ makePSSM motif bgProbs = map (f . columnProbs) columns
           f column = zipWith (\c bg -> log2 (c / bg)) column bgProbs
 
 seedMotif :: Sequences -> IO MotifIndex
-seedMotif seqs = sequence [randomRIO (0,length seq) | seq <- seqs]
+seedMotif seqs = sequence [randomRIO (0,length seq - motifLength) | seq <- seqs]
 
 seedMotifs :: Sequences -> IO MotifIndices
 seedMotifs  = fmap transpose . replicateM numMotifs . seedMotif
@@ -267,7 +267,7 @@ assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO 
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
   sample positions likelihood
   where end = length seq - length pssm --check this
-        positions = [0..end]
+        positions = trace (show end) [0..end]
         (mi, mis') = separate seqNum mis
         energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
         likelihood pos = exp (- energy pos) --via Boltzmann distribution
