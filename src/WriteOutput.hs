@@ -27,7 +27,7 @@ prepareOutput g config (tick,tock) = outputString
 makeFileName :: FilePath -> ClockTime -> String
 makeFileName fp tick = process fp
   where process = addPath . addExt . addTimeStamp . removePath . removeExt
-        removePath = replace "../doc/" ""
+        removePath = replace "../config/" ""
         removeExt = replace ".wg" ""
         fpStripped = (removePath . removeExt) fp
         addPath = ("../log/" ++)
