@@ -267,7 +267,7 @@ assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO 
 assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix =
   sample positions likelihood
   where end = length seq - length pssm --check this
-        positions = trace (show end) [0..end]
+        positions = [0..end]
         (mi, mis') = separate seqNum mis
         energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
         likelihood pos = exp (- energy pos) --via Boltzmann distribution
