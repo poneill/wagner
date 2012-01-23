@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module ParseConfig (parseConfig) where
+module ParseConfig where
 import Data.Monoid
 import Data.String.Utils
 import Wagner
@@ -12,22 +12,26 @@ type Table = [(Key, Value)]
 readUpdateTable = [ ("greedy",greedy)
                   , ("sa",sa)
                   , ("patrify",patrify)
+                  , ("greedySweep",greedySweep)                    
+                  , ("patrifySweep",patrifySweep)                    
                   ]
 
 data Config = Config { dataFile        :: String
-                     , methodName      :: Update
+                     , methodName      :: String
+                     , method          :: Update                       
                      , convergence     :: Bool
-                     , iterations      :: Int
+                     , numIterations   :: Int
                      , logIterations   :: Bool
                      , logMotifIndices :: Bool
                      , logMotifs       :: Bool
                      }
 
                  
-defaultTable =   [ ("dataFile"        , "../data/lexA_e_coli_120.csv")
+defaultTable =   [ ("dataFile"         , "../data/lexA_e_coli_120.csv")
                   , ("methodName"      , "greedy")
+                  , ("method"          , "greedy")                    
                   , ("convergence"     , "True")
-                  , ("iterations"      , "0")
+                  , ("numIterations"   , "0")
                   , ("logIterations"   , "True")
                   , ("logMotifIndices" , "True")
                   , ("logMotifs"       , "True")
@@ -36,14 +40,16 @@ defaultTable =   [ ("dataFile"        , "../data/lexA_e_coli_120.csv")
 configFromTable :: Table -> Config
 configFromTable table = 
   Config { dataFile        = extract "dataFile" table
-         , methodName      = fromJust $ lookup fname readUpdateTable
+         , methodName      = fname
+         , method          = fromJust $ lookup fname readUpdateTable
          , convergence     = read $ extract "convergence" table
-         , iterations      = read $ extract "iterations" table
+         , numIterations   = read $ extract "iterations" table
          , logIterations   = read $ extract "logIterations" table
          , logMotifIndices = read $ extract "logMotifIndices" table
          , logMotifs       = read $ extract "logMotifs" table
          }
-  where fname = extract "methodName" table
+  where fname = extract "method" table
+
 fromJust (Just x) = x
 
 extract ::String -> Table -> String
