@@ -8,16 +8,15 @@ import System.Environment
 import System.Time
 
 -- pesco's really cheap and simple flags and options (tm)
-clparts = getArgs >>= return . (\(a,b) -> (a,drop 1 b)) . break (=="--")
-getargs = clparts >>= \(a,b)-> return ([h:t| h:t<-a, h/='-' || null t] ++ b)
-getflags = clparts >>= \(a,_)-> return (concat [t| '-':t <- a])
-getflag x = getflags >>= return . elem x
+clParts = getArgs >>= return . (\(a,b) -> (a,drop 1 b)) . break (=="--")
+getArgs' = clParts >>= \(a,b)-> return ([h:t| h:t<-a, h/='-' || null t] ++ b)
+getFlags = clParts >>= \(a,_)-> return (concat [t| '-':t <- a])
+getFlag x = getFlags >>= return . elem x
 
-main = do args <- getArgs
+main = do args <- getArgs'
           tick <- getClockTime
           let configFile = head args
           config <- parseConfig configFile
-          printing <- getflag 'p'
           let f = method config
           let fname = methodName config
           let iterations = numIterations config
@@ -35,7 +34,8 @@ main = do args <- getArgs
           --Output begins
           tock <- getClockTime
           let time = (tick,tock)
-          writeOutput g' config time 
+          quiet <- getFlag 'q'
+          writeOutput g' config time quiet
           print fname
           print iterations
           print converges
