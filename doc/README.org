@@ -1,0 +1,2 @@
+
+* Hopefully this directory will eventually contain some documentation
