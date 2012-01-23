@@ -1,0 +1,3 @@
+This directory contains the logging output for Wagner.
+
+Logging files should not be tracked by git.
