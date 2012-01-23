@@ -34,8 +34,8 @@ data Gestalt = Gestalt { sequences :: Sequences
 
 delta = "ACGT"
 epsilon = 1/100
-numMotifs = 3
-motifLength = 6
+numMotifs = 1
+motifLength = 16
 uniformProbs = replicate 4 0.25
 
 indexOf :: Char -> Index
@@ -210,6 +210,13 @@ greedySweep g = foldl' f (return g) is
         is = [0..numSeqs - 1]
         f mg i = mg >>= \g -> greedyIthSeq g i
 
+-- sweepify :: (Gestalt -> IO Gestalt) -> (Gestalt -> IO Gestalt)
+-- sweepify method = \g -> foldl' f (return g) [0..(length (motifIndices g)) - 1]
+--   where f mg i = mg >>= \g -> method g i
+        
+-- saSweep :: Gestalt -> IO Gestalt
+-- saSweep = sweepify sa
+        
 patrify :: Gestalt -> IO Gestalt
 patrify (Gestalt seqs mis) = do
   seqNum <- randomRIO (0, length seqs - 1)
