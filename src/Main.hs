@@ -18,12 +18,8 @@ main = do args <- getArgs'
           let configFile = head args
           config <- parseConfig configFile
           let f = method config
-          let fname = methodName config
           let iterations = numIterations config
           let converges = convergence config
-          let iterLog = logIterations config
-          let misLog = logMotifIndices config              
-          let motifsLog = logMotifs config
           seqs <- readSequences $ dataFile config              
           mis <- seedMotifs seqs
           --Input ends here
@@ -36,8 +32,3 @@ main = do args <- getArgs'
           let time = (tick,tock)
           quiet <- getFlag 'q'
           writeOutput g' config time quiet
-          print fname
-          print iterations
-          print converges
-          print $ gestaltEntropy g'
-          print $ motifIndices g'
