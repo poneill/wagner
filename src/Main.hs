@@ -25,7 +25,7 @@ main = do args <- getArgs'
           --Input ends here
           let g = Gestalt seqs mis
           g' <- if converges
-                then converge g f
+                then convergeCyclic g f iterations
                 else iterateN' iterations (>>= f) (return g)
           --Output begins
           tock <- getClockTime
