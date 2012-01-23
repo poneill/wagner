@@ -44,7 +44,7 @@ indexOf 'C' = 1
 indexOf 'G' = 2
 indexOf 'T' = 3
 
-spacer = motifLength * 1
+spacer = motifLength
 spacerPenalty = 100
 assignSpacerPenalty :: Index -> Index -> Float
 assignSpacerPenalty i j
