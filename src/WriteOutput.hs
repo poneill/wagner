@@ -17,13 +17,23 @@ writeOutput g config (tick,tock) quiet = do
   writeFile fp outputString 
 
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
-prepareOutput g config (tick,tock) = outputString 
+prepareOutput g config (tick,tock) = outputMessage
   where cf = configFile config
-        outputString = unlines [configString, timeString, motifString]
-        configString = formatConfigFile $ cf
-        timeString = formatTime tick tock
-        motifString = formatMotifs g
+        outputMessage = unlines [configLine, timeLine, motifLine, methodLine]
+        configLine = formatConfigFile $ cf
+        timeLine = formatTime tick tock
+        motifLine = formatMotifs g
+        methodLine = formatMethod config
         
+formatMethod :: Config -> String 
+formatMethod config = unlines [fnameString, howLong]
+  where fnameString = "Simulation ran with method: " ++ fname
+        howLong = if converges then "until convergence" else iterString
+        iterString = "for " ++ show iterations ++ " iteration" 
+        iterations = numIterations config
+        converges = convergence config
+        fname = methodName config
+
 makeFileName :: FilePath -> ClockTime -> String
 makeFileName fp tick = process fp
   where process = addPath . addExt . addTimeStamp . removePath . removeExt
