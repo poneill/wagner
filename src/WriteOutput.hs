@@ -36,7 +36,7 @@ formatMethod :: Config -> String
 formatMethod config = unlines [fnameString, howLong]
   where fnameString = "Simulation ran with method: " ++ fname
         howLong = if converges then "until convergence" else iterString
-        iterString = "for " ++ show iterations ++ " iteration" 
+        iterString = "for " ++ show iterations ++ " iterations" 
         iterations = numIterations config
         converges = convergence config
         fname = methodName config
