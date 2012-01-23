@@ -1,2 +1,4 @@
 
-* Space leaks! 
+* TODO Space leaks!
+* TODO Config File sanitization
+* TODO Config file, command line flag unification
