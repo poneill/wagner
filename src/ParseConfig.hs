@@ -16,7 +16,8 @@ readUpdateTable = [ ("greedy",greedy)
                   , ("patrifySweep",patrifySweep)                    
                   ]
 
-data Config = Config { dataFile        :: String
+data Config = Config { dataFile        :: FilePath
+                     , configFile      :: FilePath
                      , methodName      :: String
                      , method          :: Update                       
                      , convergence     :: Bool
@@ -28,6 +29,7 @@ data Config = Config { dataFile        :: String
 
                  
 defaultTable =   [ ("dataFile"         , "../data/lexA_e_coli_120.csv")
+                 , ("configFile"       , "notApplicable.wg")
                   , ("methodName"      , "greedy")
                   , ("method"          , "greedy")                    
                   , ("convergence"     , "True")
@@ -40,6 +42,7 @@ defaultTable =   [ ("dataFile"         , "../data/lexA_e_coli_120.csv")
 configFromTable :: Table -> Config
 configFromTable table = 
   Config { dataFile        = extract "dataFile" table
+         , configFile      = extract "configFile" table
          , methodName      = fname
          , method          = fromJust $ lookup fname readUpdateTable
          , convergence     = read $ extract "convergence" table
@@ -58,17 +61,13 @@ extract keyString table = case lookup keyString table of
   otherwise  -> extract keyString defaultTable
     
 parseConfig :: FilePath -> IO Config
-parseConfig fp = fmap (configFromTable . tableFromFile) $ readFile fp
+parseConfig fp = fmap (configFromTable . tableFromFile fp) $ readFile fp
 
 stripComments :: [String] -> [String]
 stripComments = filter (not . null) . map (takeWhile (/='#'))
         
---tableFromConfig :: String -> [(String,String)]
-tableFromFile = keyValTable . stripComments . lines
-
--- addDefaults :: Table -> Table
--- addDefaults table = table ++ [(k,v) | (k,v) <- defaultConfig, 
---                               not $ k `elem` map fst table]
+tableFromFile :: FilePath -> String -> [(String,String)]
+tableFromFile fp = ([("configFile", fp)] ++) . keyValTable . stripComments . lines
 
 keyValTable :: [String] -> [(String, String)]
 keyValTable lines = zip keys vals
