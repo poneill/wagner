@@ -2,7 +2,7 @@ module Utils where
 
 import Data.List
 import Data.Char
-import System.Random
+import System.Random hiding (split)
 import Debug.Trace
 
 range :: (Integral a) => a -> [a]
@@ -86,6 +86,22 @@ removeNth ::  [a] -> Int -> [a]
 removeNth xs n = ys ++ tail zs
   where (ys,zs) = splitAt n xs   
 
+split :: Char -> String -> [String]
+split ch xs = reverse $ map reverse $ split' ch xs [[]]
+
+split' :: Char -> String -> [String] -> [String]
+split' ch xs acc
+  | null xs = acc
+  | ch == head xs = split' ch (tail xs) ([]:acc)
+  | otherwise = split' ch (tail xs) (((head xs):(head acc)):(tail acc))
+  
+replace :: (Eq a) => [a] -> [a] -> [a] -> [a]
+replace old new str
+  | null str = []
+  | old == take l str = new ++ replace old new (drop l str)
+  | otherwise = head str : replace old new (tail str)
+    where l = length old
+  
 iterateN' ::  Int -> (a -> a) -> a -> a
 iterateN' 0 f x = x
 iterateN' n f x = x `seq` iterateN' (n - 1) f (f x)
