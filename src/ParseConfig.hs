@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module ParseConfig where
 import Data.Monoid
-import Data.String.Utils
+import Utils
 import Wagner
 import Data.List
 import System.Environment
@@ -92,4 +92,4 @@ tableFromFile fp = ([("configFile", fp)] ++) . keyValTable . stripComments . lin
 
 keyValTable :: [String] -> [(String, String)]
 keyValTable lines = zip keys vals
-  where [keys, vals] = transpose $ map (map strip . split ":") lines
+  where [keys, vals] = transpose $ map (map trim . split ':') lines
