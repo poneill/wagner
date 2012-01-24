@@ -129,3 +129,9 @@ mean xs = realToFrac (sum xs) / genericLength xs --Thanks, Don Stewart
 fixpoint :: (Eq b) => (a -> a) -> a -> (a -> b) -> a
 fixpoint f a p = fst $ head $ dropWhile (\(x,y) -> p x /= p y) $ zip its (tail its)
   where its = iterate f a
+
+-- Extend composition operator to functions of more arguments
+compose4 :: (b -> c) -> (a -> a1 -> a2 -> a3 -> b) -> a -> a1 -> a2 -> a3 -> c
+compose4 = (.).(.).(.).(.)
+
+primes = nubBy (\x y -> gcd x y > 1) [2..]
