@@ -117,7 +117,6 @@ bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
 bindingEnergyAt pssm seq i = scoreToEnergy score
   where score = scoreAt pssm seq i
 
---reverseSigmoid x = 1 / (1 + exp (x))
 scoreToEnergy x = - x
 
 maxResponseOverSeq :: PSSM -> Sequence -> Index
@@ -224,13 +223,6 @@ patrifySweep = sweepWrapper patrifyIthSeq
         
 greedySweep :: Gestalt -> IO Gestalt
 greedySweep = sweepWrapper greedyIthSeq
-
--- sweepify :: (Gestalt -> IO Gestalt) -> (Gestalt -> IO Gestalt)
--- sweepify method = \g -> foldl' f (return g) [0..(length (motifIndices g)) - 1]
---   where f mg i = mg >>= \g -> method g i
-        
--- saSweep :: Gestalt -> IO Gestalt
--- saSweep = sweepify sa
         
 patrify :: Gestalt -> IO Gestalt
 patrify g = do
