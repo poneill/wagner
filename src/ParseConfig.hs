@@ -10,8 +10,7 @@ type Key = String
 type Value = String
 type Table = [(Key, Value)]
 
-readUpdateTable = [ ("greedy",greedy)
-                  , ("sa",sa)
+readUpdateTable = [ ("sa",sa)
                   , ("patrify",patrify)
                   , ("greedySweep",greedySweep)                    
                   , ("patrifySweep",patrifySweep)                    
