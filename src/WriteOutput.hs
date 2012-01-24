@@ -4,7 +4,7 @@ import System.Environment
 import Data.List
 import ParseConfig
 import Wagner 
-import Data.String.Utils
+import Utils
 import Control.Monad
 
 writeOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> IO ()
