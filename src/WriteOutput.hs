@@ -20,13 +20,13 @@ writeOutput g config (tick,tock) = do
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
 prepareOutput g config (tick,tock) = outputMessage
   where cf = configFile config
-        outputMessage = unlines [configLine, timeLine, motifLine, entropyLine, methodLine]
+        outputMessage = unlines [configLine, timeLine, motifLine, entropyLine, methodLine, statMatricesLine]
         configLine = formatConfigFile cf
         timeLine = formatTime tick tock
         motifLine = formatMotifs g
         methodLine = formatMethod config
         entropyLine = formatEntropy g
-          
+        statMatricesLine = formatStatMatrices g
 formatEntropy :: Gestalt -> String
 formatEntropy g = unlines [total, perMotif]
   where total = "Total Entropy: " ++ show (gestaltEntropy g)
@@ -67,14 +67,33 @@ formatTime tick tock = unlines [timeBegan, timeFinished, timeTook]
   
 formatMotifs :: Gestalt -> String
 formatMotifs g@(Gestalt seqs mis) = unlines $ map unwords untuples
-  where mis' = mmap (padLeft . show) mis
+  where mis' = mmap (padLeft 4 . show) mis
         motifs' = transpose $ recoverMotifs g
         tuples = zipWith zip mis' motifs'
         untuples  = mmap (\(x, y) -> x ++ " " ++ y) contents
         contents = zipWith zip mis' motifs'
 
+formatStatMatrices :: Gestalt -> String
+formatStatMatrices g = unlines [meanString, varString]
+  where meanString = "Means:\n" ++ formatMean (meanMatrix mis)
+        varString = "Variances:\n" ++ formatVariance (varianceMatrix mis)
+        mis = motifIndices g
+
+--formatMean :: MeanMatrix -> [String]
+formatMean = unlines . map unwords . mmap (padLeft 8 . cropDigits 2 . show)
+
+--formatVariance :: MeanMatrix -> [String]
+formatVariance = unlines . map unwords . mmap (padLeft 8 . cropDigits 2 . show)
+
 mmap :: (a -> b) -> [[a]] -> [[b]]
 mmap f = map (map f)
 
-padLeft :: String -> String
-padLeft str = replicate (4 - length str) ' ' ++ str
+padLeft :: Int -> String -> String
+padLeft n str = replicate (n - length str) ' ' ++ str
+
+cropDigits :: Int -> String -> String
+cropDigits n str = before ++ after ++ trailing
+  where str' = if '.' `elem` str then str else str ++ "."
+        before = takeWhile (/= '.') str' 
+        after = (take (n + 1) $ dropWhile (/= '.') str')
+        trailing = replicate (n - length after + 1) '0'
