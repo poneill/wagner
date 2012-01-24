@@ -35,11 +35,11 @@ data Gestalt = Gestalt { sequences :: Sequences
                        }
              deriving Show
   
-
+alpha = 1
 delta = "ACGT"
 epsilon = 1/100
 numMotifs = 5
-motifLength = 6
+motifLength = 8
 uniformProbs = replicate 4 0.25
 
 indexOf :: Char -> Index
@@ -114,7 +114,7 @@ scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = scoreToEnergy score
+bindingEnergyAt pssm seq i = (scoreToEnergy score) / fromIntegral (length pssm)
   where score = scoreAt pssm seq i
 
 scoreToEnergy x = - x
@@ -160,18 +160,18 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
 potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> StatMatrices -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potential seq (i,pssm) pos mi mis statMatrices = bE + a * sE
+potential seq (i,pssm) pos mi mis statMatrices = bE + alpha * sE
   where bE = bindingEnergyAt pssm seq pos --bigger is worse
         sE = springEnergy seq (i,pssm) pos mi mis statMatrices
-        a = 0.1
+
         
 potentials :: Sequence -> NamedPSSM -> Indices -> MotifIndex -> MotifIndices -> StatMatrices -> [Float]
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potentials seq (i,pssm) ps mi mis statMatrices = map (\p -> bE p + a * sE p) ps
+potentials seq (i,pssm) ps mi mis statMatrices = map (\p -> bE p + alpha * sE p) ps
   where bE = bindingEnergyAt pssm seq --bigger is worse
         sE p= springEnergy seq (i,pssm) p mi mis statMatrices
-        a = 0.1
+
 
 springEnergy :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> StatMatrices -> Float
 springEnergy seq (i,pssm) pos mi mis (muMatrix,varMatrix) = sum [log (epsilon + 
