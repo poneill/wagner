@@ -19,6 +19,7 @@ main = do tick <- getClockTime
           g' <- if converges
                 then convergeCyclic g f iterations
                 else iterateN' iterations (>>= f) (return g)
+          print $ gestaltEntropies g'
           --Output begins
           tock <- getClockTime
           let time = (tick,tock)
