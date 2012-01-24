@@ -22,9 +22,13 @@ type MotifIndex = [Index] --Records left endpoints of occurrence of
 type MotifIndexCol = [Index]
 type MotifIndices = [MotifIndex]
 type Index = Int --An index is a position in a sequence
+type Indices = [Index]
 type Name = Int --A name is a tag denoting a motif element.
 type NamedPSSM = (Name, PSSM)
+type Assigner = NamedSequence -> NamedPSSM -> MotifIndices -> StatMatrices -> IO Index
 type VarMatrix = [[Float]]
+type MeanMatrix = [[Float]]
+type StatMatrices = (MeanMatrix, VarMatrix)
 type Update = (Gestalt -> IO Gestalt)
 data Gestalt = Gestalt { sequences :: Sequences 
                        , motifIndices :: MotifIndices
@@ -107,10 +111,10 @@ score :: PSSM -> Sequence -> Float -- assumes sequence is as long as pssm
 score pssm seq = sum $ zipWith (\p s -> p !! indexOf s) pssm seq
 
 scoreAt :: PSSM -> Sequence -> Index -> Float
-scoreAt pssm seq i = printScoreAt $ score pssm (drop i seq)
+scoreAt pssm seq i = score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = printBindingEnergyAt $ scoreToEnergy score
+bindingEnergyAt pssm seq i = scoreToEnergy score
   where score = scoreAt pssm seq i
 
 --reverseSigmoid x = 1 / (1 + exp (x))
@@ -154,26 +158,35 @@ ivanizeIthSequence g i = do { motifOrder <- orderMotifs pssms' seq seqs'
                                pssms' = recoverPSSMs (Gestalt seqs' mis')
                                folder ma b = ma >>= \x -> addToMIs seq x b
 
-potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
+potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> StatMatrices -> Float
 --potential can't be larger than 700, or exp (-potential) will underflow
 --higher potential means lower probability state
-potential seq (i,pssm) pos mi mis varMatrix = bE + a * sE
+potential seq (i,pssm) pos mi mis statMatrices = bE + a * sE
   where bE = bindingEnergyAt pssm seq pos --bigger is worse
-        sE = springEnergy seq (i,pssm) pos mi mis varMatrix
+        sE = springEnergy seq (i,pssm) pos mi mis statMatrices
         a = 0.1
         
-springEnergy :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
-springEnergy seq (i,pssm) pos mi mis varMatrix = sum [(log $ epsilon + 
+potentials :: Sequence -> NamedPSSM -> Indices -> MotifIndex -> MotifIndices -> StatMatrices -> [Float]
+--potential can't be larger than 700, or exp (-potential) will underflow
+--higher potential means lower probability state
+potentials seq (i,pssm) ps mi mis statMatrices = map (\p -> bE p + a * sE p) ps
+  where bE = bindingEnergyAt pssm seq --bigger is worse
+        sE p= springEnergy seq (i,pssm) p mi mis statMatrices
+        a = 0.1
+
+springEnergy :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> StatMatrices -> Float
+springEnergy seq (i,pssm) pos mi mis (muMatrix,varMatrix) = sum [log (epsilon + 
                                                        energyFromSpring j jpos) + 
                                                       assignSpacerPenalty pos jpos 
                                                      | (j, jpos) <- zip [0..] mi, j /= i]
-  where energyFromSpring j jpos = (displacement (i, pos) (j,jpos))**2 / (epsilon + var j) 
+  where energyFromSpring j jpos = displacement (i, pos) (j,jpos) **2 / (epsilon + var j) 
         var j = varMatrix !! i !! j
-        muMatrix = meanMatrix mis
         mu i j = muMatrix !! i !! j
         displacement (i,ipos) (j,jpos) = fromIntegral (ipos - jpos) - mu i j
 
-        
+makeStatMatrices :: MotifIndices -> StatMatrices 
+makeStatMatrices mis = (meanMatrix mis, varianceMatrix mis)
+
 meanMatrix :: MotifIndices -> [[Float]] --compute resting lengths
 --matrix is symmetric, upper triangular; could just compute half of it
 meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
@@ -181,41 +194,36 @@ meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
         
-patrifyIthSeq :: Gestalt -> Int -> IO Gestalt
-patrifyIthSeq (Gestalt seqs mis) seqNum = do
-  let seq = seqs !! seqNum      
-  let mi = mis !! seqNum      
+        
+assignIthWrapper :: Assigner -> Gestalt -> Int -> IO Gestalt
+assignIthWrapper assigner (Gestalt seqs mis) seqNum = do
+  let (seq, seqs') = separate seqNum seqs      
+  let (mi, mis') = separate seqNum mis      
   motifNum <- randomRIO (0, numMotifs - 1)
-  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  let varMatrix = varianceMatrix (delete mi mis)
-  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
+  let looPSSM = recoverNthPSSM seqs' mis' motifNum
+  let statMatrices = makeStatMatrices mis'
+  i' <- assigner (seqNum,seq) (motifNum, looPSSM) mis statMatrices
   let  mi' = replaceAt motifNum i' mi
   let mis' = replaceAt seqNum mi' mis
   return (Gestalt seqs mis')
+  
+patrifyIthSeq :: Gestalt -> Int -> IO Gestalt
+patrifyIthSeq = assignIthWrapper assignIthIndex 
 
 greedyIthSeq :: Gestalt -> Int -> IO Gestalt
-greedyIthSeq (Gestalt seqs mis) seqNum = do
-  let seq = seqs !! seqNum      
-  let mi = mis !! seqNum      
-  motifNum <- randomRIO (0, numMotifs - 1)
-  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  let varMatrix = varianceMatrix (delete mi mis)
-  let nextPos = greedyAssignIthIndex (seqNum,seq) (motifNum,looPSSM) mis varMatrix
-  let mi' = replaceAt motifNum nextPos mi
-  let mis' = replaceAt seqNum mi' mis
-  return (Gestalt seqs mis')
+greedyIthSeq = assignIthWrapper $ compose4 return greedyAssignIthIndex'
+
+sweepWrapper :: (Gestalt -> Int -> IO Gestalt) -> Gestalt -> IO Gestalt
+sweepWrapper updater g = foldl' f (return g) is
+  where numSeqs = length $ motifIndices g
+        is = [0..numSeqs - 1]
+        f mg i = mg >>= \g -> updater g i
 
 patrifySweep :: Gestalt -> IO Gestalt
-patrifySweep g = foldl' f (return g) is
-  where numSeqs = length $ motifIndices g
-        is = [0..numSeqs - 1]
-        f mg i = mg >>= \g -> patrifyIthSeq g i
+patrifySweep = sweepWrapper patrifyIthSeq
         
 greedySweep :: Gestalt -> IO Gestalt
-greedySweep g = foldl' f (return g) is
-  where numSeqs = length $ motifIndices g
-        is = [0..numSeqs - 1]
-        f mg i = mg >>= \g -> greedyIthSeq g i
+greedySweep = sweepWrapper greedyIthSeq
 
 -- sweepify :: (Gestalt -> IO Gestalt) -> (Gestalt -> IO Gestalt)
 -- sweepify method = \g -> foldl' f (return g) [0..(length (motifIndices g)) - 1]
@@ -225,49 +233,29 @@ greedySweep g = foldl' f (return g) is
 -- saSweep = sweepify sa
         
 patrify :: Gestalt -> IO Gestalt
-patrify (Gestalt seqs mis) = do
-  seqNum <- randomRIO (0, length seqs - 1)
-  let seq = seqs !! seqNum      
-  let mi = mis !! seqNum      
-  motifNum <- randomRIO (0, numMotifs - 1)
-  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  let varMatrix = varianceMatrix (delete mi mis)
-  i' <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
-  let  mi' = replaceAt motifNum i' mi
-  let mis' = replaceAt seqNum mi' mis
-  return (Gestalt seqs mis')
-
-greedy :: Gestalt -> IO Gestalt 
-greedy (Gestalt seqs mis) = do
-  seqNum <- randomRIO (0, length seqs - 1)
-  let seq = seqs !! seqNum      
-  let mi = mis !! seqNum      
-  motifNum <- randomRIO (0, numMotifs - 1)
-  let varMatrix = varianceMatrix (delete mi mis)
-  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  let nextPos = maxResponseOverSeq looPSSM seq
-  let  mi' = replaceAt motifNum nextPos mi
-  let mis' = replaceAt seqNum mi' mis
-  return (Gestalt seqs mis')
-
+patrify g = do
+  seqNum <- randomRIO (0, length (sequences g) - 1)
+  patrifyIthSeq g seqNum
 
 sa :: Gestalt -> IO Gestalt
-sa (Gestalt seqs mis) = do
-  seqNum <- randomRIO (0, length seqs - 1)
-  let seq = seqs !! seqNum      
-  let mi = mis !! seqNum      
-  motifNum <- randomRIO (0, numMotifs - 1)
-  let varMatrix = varianceMatrix (delete mi mis)
-  let looPSSM = recoverNthPSSM (delete seq seqs) (delete mi mis) motifNum -- revise
-  proPos <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis varMatrix
+sa g = do
+  seqNum <- randomRIO (0, length (sequences g) - 1)
+  saIth g seqNum
+
+saIth :: Gestalt -> Int -> IO Gestalt
+saIth = assignIthWrapper saCore
+
+saCore :: Assigner 
+saCore (seqNum,seq) (motifNum,looPSSM) mis statMatrices = do
+  proPos <- assignIthIndex (seqNum,seq) (motifNum, looPSSM) mis statMatrices
+  let mi = mis !! seqNum
   let curPos = mi !! motifNum
-  let curPot = potential seq (motifNum,looPSSM) curPos mi mis varMatrix
-  let proPot = potential seq (motifNum,looPSSM) proPos mi mis varMatrix
+  let curPot = potential seq (motifNum,looPSSM) curPos mi mis statMatrices
+  let proPot = potential seq (motifNum,looPSSM) proPos mi mis statMatrices
   acceptProposed <- accept' curPot proPot
   let nextPos = if acceptProposed then proPos else curPos
-  let  mi' = replaceAt motifNum nextPos mi
-  let mis' = replaceAt seqNum mi' mis
-  return (Gestalt seqs mis')
+  return nextPos
+
 
 accept' :: Float -> Float -> IO Bool --old 
 accept' current proposed = do
@@ -277,21 +265,21 @@ accept' current proposed = do
   let acceptProposed = (proposed < current) || (r < current / proposed) 
   return acceptProposed
       
-assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
-assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix = do sample positions likelihood
+assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> StatMatrices -> IO Index
+assignIthIndex (seqNum,seq) (i,pssm) mis statMatrices = sample positions likelihood
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
-        energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
+        energy pos = potential seq (i,pssm) pos mi mis' statMatrices
         likelihood pos = exp (- energy pos) --via Boltzmann distribution
 
-greedyAssignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> Index
-greedyAssignIthIndex (seqNum,seq) (i,pssm) mis varMatrix = argMax likelihood positions
+greedyAssignIthIndex' :: NamedSequence -> NamedPSSM -> MotifIndices -> StatMatrices -> Index
+greedyAssignIthIndex' (seqNum,seq) (i,pssm) mis statMatrices = fst $ argMax snd (zip positions ps)
   where end = length seq - length pssm --check this
-        positions = [0..end]
         (mi, mis') = separate seqNum mis
-        energy pos = printPotential $ potential seq (i,pssm) pos mi mis' varMatrix
-        likelihood pos = exp (- energy pos) --via Boltzmann distribution
+        positions = [0..end]
+        ps = potentials seq (i,pssm) positions mi mis' statMatrices
+        likelihoods = map (\p -> exp (- p)) ps --via Boltzmann distribution
 
 
 toMotifIndex :: [NamedPSSM] -> MotifIndex
@@ -400,30 +388,3 @@ convergeCyclic g f burnIn = converge' burnedIn []
                                   else converge' (f g') (mis:table)
                                 }
         burnedIn = iterateN burnIn (>>= f) (return g)
--- debugging
-
-debugging = False
-myTrace st x
-  | debugging = trace st x
-  | otherwise = x
-
---printPotential x | myTrace ("printPotential"++ " " ++ show x) False = undefined
-printPotential x = x
---printTubs xs | myTrace ("printTubs"++ " " ++ show xs) False = undefined
-printTubs xs = xs
-printSE x | myTrace ("printSE"++ " " ++ show x) False = undefined
-printSE x = x
---printFaks xs | myTrace ("maxFax"++ " " ++ show (maximum xs / sum xs)) False = undefined
-printFaks xs = xs
-printZ xs | myTrace ("printZ"++ " " ++ show xs) False = undefined
-printZ xs = xs
---printLikelihood x | myTrace ("printLikelihood"++ " " ++ show x) False = undefined
-printLikelihood x = x
---printEFS x | myTrace ("printEFS"++ " " ++ show x) False = undefined
-printEFS x = x
-printBE x | myTrace ("printBE"++ " " ++ show x) False = undefined
-printBE x = x
---printScoreAt x | trace ("printScoreAt"++ " " ++ show x) False = undefined
-printScoreAt x = x
---printBindingEnergyAt x | trace ("printBindingEnergyAt"++ " " ++ show x) False = undefined
-printBindingEnergyAt x = x
