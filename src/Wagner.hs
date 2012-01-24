@@ -160,7 +160,7 @@ potential :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> Var
 potential seq (i,pssm) pos mi mis varMatrix = bE + a * sE
   where bE = bindingEnergyAt pssm seq pos --bigger is worse
         sE = springEnergy seq (i,pssm) pos mi mis varMatrix
-        a = 10
+        a = 0.1
         
 springEnergy :: Sequence -> NamedPSSM -> Index -> MotifIndex -> MotifIndices -> VarMatrix -> Float
 springEnergy seq (i,pssm) pos mi mis varMatrix = sum [(log $ epsilon + 
@@ -278,10 +278,7 @@ accept' current proposed = do
   return acceptProposed
       
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> VarMatrix -> IO Index
-assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix = do
-  nextPos <- sample positions likelihood
-  putStrLn (show $ potential seq (i,pssm) nextPos mi mis' varMatrix)
-  return nextPos
+assignIthIndex (seqNum,seq) (i,pssm) mis varMatrix = do sample positions likelihood
   where end = length seq - length pssm --check this
         positions = [0..end]
         (mi, mis') = separate seqNum mis
