@@ -2,3 +2,5 @@
 * TODO Space leaks!
 * TODO Config File sanitization
 * DONE Config file, command line flag unification
+* TODO Gather all constants into config file with reader monad or unsafePerformIO
+* TODO gather all constants into writeOutput
