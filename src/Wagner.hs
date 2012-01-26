@@ -190,7 +190,7 @@ meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
   where motifRange = [0..numMotifs - 1]
 
 varianceMatrix :: (Floating a) => MotifIndices -> [[a]]
-varianceMatrix mis = [[variance [(mi!!i) - (mi!!j) | mi <- mis]
+varianceMatrix mis = [[variance [fromIntegral $ (mi!!i) - (mi!!j) | mi <- mis]
                   |i <- motifRange] 
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
