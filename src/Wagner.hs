@@ -35,11 +35,11 @@ data Gestalt = Gestalt { sequences :: Sequences
                        }
              deriving Show
   
-alpha = 1
+alpha = 0
 delta = "ACGT"
 epsilon = 1/100
-numMotifs = 5
-motifLength = 8
+numMotifs = 1
+motifLength = 16
 uniformProbs = replicate 4 0.25
 
 indexOf :: Char -> Index
@@ -96,10 +96,6 @@ distanceMatrix :: Int -> MotifIndices -> DistanceMatrix
 --Return a distance matrix for the nth sequence
 distanceMatrix n mis = [[abs (i - j) | i <- nthIndices] | j <- nthIndices]
     where nthIndices = mis !! n
-
-varianceMatrix :: (Floating a) => MotifIndices -> [[a]]
-varianceMatrix mis = map (map (variance . map fromIntegral) . transpose) (transpose dms)
-  where dms = [distanceMatrix i mis | i <- [0..length mis - 1]]
   
 rescoreSequence :: Sequence -> Sequences -> MotifIndices -> MotifIndex
 --Accepts a sequence and its LOO MotifIndices, returns a MotifIndex for sequence
@@ -192,7 +188,18 @@ meanMatrix mis = [[mean [(mi!!i) - (mi!!j) | mi <- mis]
                   |i <- motifRange] 
                  | j <- motifRange]
   where motifRange = [0..numMotifs - 1]
-        
+
+varianceMatrix :: (Floating a) => MotifIndices -> [[a]]
+varianceMatrix mis = [[variance [(mi!!i) - (mi!!j) | mi <- mis]
+                  |i <- motifRange] 
+                 | j <- motifRange]
+  where motifRange = [0..numMotifs - 1]
+
+
+varianceMatrix' :: (Floating a) => MotifIndices -> [[a]]
+varianceMatrix' mis = map (map (variance . map fromIntegral) . transpose) (transpose dms)
+  where dms = [distanceMatrix i mis | i <- [0..length mis - 1]]
+
         
 assignIthWrapper :: Assigner -> Gestalt -> Int -> IO Gestalt
 assignIthWrapper assigner (Gestalt seqs mis) seqNum = do
@@ -252,8 +259,7 @@ saCore (seqNum,seq) (motifNum,looPSSM) mis statMatrices = do
 accept' :: Float -> Float -> IO Bool --old 
 accept' current proposed = do
   r <- randomRIO (0.0,1.0)
-  -- we have already mapped energies into probabilities at this point,
-  -- so take the ratio rather than exp (current - proposed)
+  -- goal is to minimize potential
   let acceptProposed = (proposed < current) || (r < current / proposed) 
   return acceptProposed
       
