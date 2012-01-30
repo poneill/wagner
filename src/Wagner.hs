@@ -110,7 +110,7 @@ scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = (scoreToEnergy score) / fromIntegral (length pssm)
+bindingEnergyAt pssm seq i = scoreToEnergy score / fromIntegral (length pssm)
   where score = scoreAt pssm seq i
 
 scoreToEnergy x = - x
@@ -251,7 +251,7 @@ saCore (seqNum,seq) (motifNum,looPSSM) mis statMatrices = do
   let curPos = mi !! motifNum
   let curPot = potential seq (motifNum,looPSSM) curPos mi mis statMatrices
   let proPot = potential seq (motifNum,looPSSM) proPos mi mis statMatrices
-  acceptProposed <- accept' curPot proPot
+  acceptProposed <- accept curPot proPot
   let nextPos = if acceptProposed then proPos else curPos
   return nextPos
 
@@ -262,7 +262,14 @@ accept' current proposed = do
   -- goal is to minimize potential
   let acceptProposed = (proposed < current) || (r < current / proposed) 
   return acceptProposed
-      
+
+accept :: Float -> Float -> IO Bool --old 
+accept current proposed = do
+  r <- randomRIO (0.0,1.0)
+  -- goal is to minimize potential
+  let acceptProposed = (proposed < current) || (r < exp (current - proposed)) 
+  return acceptProposed
+
 assignIthIndex :: NamedSequence -> NamedPSSM -> MotifIndices -> StatMatrices -> IO Index
 assignIthIndex (seqNum,seq) (i,pssm) mis statMatrices = sample positions likelihood
   where end = length seq - length pssm --check this
