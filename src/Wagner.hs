@@ -35,10 +35,10 @@ data Gestalt = Gestalt { sequences :: Sequences
                        }
              deriving Show
   
-alpha = 0
+alpha = 1
 delta = "ACGT"
 epsilon = 1/100
-numMotifs = 1
+numMotifs = 3
 motifLength = 16
 uniformProbs = replicate 4 0.25
 
@@ -110,7 +110,7 @@ scoreAt :: PSSM -> Sequence -> Index -> Float
 scoreAt pssm seq i = score pssm (drop i seq)
 
 bindingEnergyAt :: PSSM -> Sequence -> Index -> Float --lower is better
-bindingEnergyAt pssm seq i = scoreToEnergy score / fromIntegral (length pssm)
+bindingEnergyAt pssm seq i = scoreToEnergy score -- / fromIntegral (length pssm)
   where score = scoreAt pssm seq i
 
 scoreToEnergy x = - x
@@ -200,7 +200,14 @@ varianceMatrix' :: (Floating a) => MotifIndices -> [[a]]
 varianceMatrix' mis = map (map (variance . map fromIntegral) . transpose) (transpose dms)
   where dms = [distanceMatrix i mis | i <- [0..length mis - 1]]
 
-        
+selfMeans :: MotifIndices -> [Float]
+selfMeans mis = map mean $ transpose mis'
+  where mis' = mmap fromIntegral mis
+
+selfVariances :: MotifIndices -> [Float]
+selfVariances mis = map variance $ transpose mis'
+  where mis' = mmap fromIntegral $ mis
+
 assignIthWrapper :: Assigner -> Gestalt -> Int -> IO Gestalt
 assignIthWrapper assigner (Gestalt seqs mis) seqNum = do
   let (seq, seqs') = separate seqNum seqs      
