@@ -20,13 +20,22 @@ writeOutput g config (tick,tock) = do
 prepareOutput :: Gestalt -> Config -> (ClockTime,ClockTime) -> String
 prepareOutput g config (tick,tock) = outputMessage
   where cf = configFile config
-        outputMessage = unlines [configLine, timeLine, motifLine, entropyLine, methodLine, statMatricesLine]
+        outputMessage = unlines [ configLine
+                                , timeLine
+                                , motifLine
+                                , entropyLine
+                                , methodLine
+                                , statMatricesLine
+                                , selfStatsLine
+                                ]
         configLine = formatConfigFile cf
         timeLine = formatTime tick tock
         motifLine = formatMotifs g
         methodLine = formatMethod config
         entropyLine = formatEntropy g
         statMatricesLine = formatStatMatrices g
+        selfStatsLine = formatSelfStats g
+        
 formatEntropy :: Gestalt -> String
 formatEntropy g = unlines [total, perMotif]
   where total = "Total Entropy: " ++ show (gestaltEntropy g)
@@ -78,6 +87,15 @@ formatStatMatrices g = unlines [meanString, varString]
   where meanString = "Means:\n" ++ formatMean (meanMatrix mis)
         varString = "Variances:\n" ++ formatVariance (varianceMatrix mis)
         mis = motifIndices g
+
+formatSelfStats :: Gestalt -> String
+formatSelfStats g = unlines [meanString, varString]
+  where meanString = "Auto-means:\n" ++ formatList (selfMeans mis)
+        varString = "Auto-variances:\n" ++ formatList (selfVariances mis)
+        mis = motifIndices g
+
+formatList :: [Float] -> String
+formatList = unwords . (map show)
 
 --formatMean :: MeanMatrix -> [String]
 formatMean = unlines . map unwords . mmap (padLeft 8 . cropDigits 2 . show)
