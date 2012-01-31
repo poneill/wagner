@@ -134,4 +134,7 @@ fixpoint f a p = fst $ head $ dropWhile (\(x,y) -> p x /= p y) $ zip its (tail i
 compose4 :: (b -> c) -> (a -> a1 -> a2 -> a3 -> b) -> a -> a1 -> a2 -> a3 -> c
 compose4 = (.).(.).(.).(.)
 
-primes = nubBy (\x y -> gcd x y > 1) [2..]
+normalize xs = map (/sum xs) xs
+
+mmap :: (a -> b) -> [[a]] -> [[b]]
+mmap f = map (map f)
