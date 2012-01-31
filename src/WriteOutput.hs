@@ -85,9 +85,6 @@ formatMean = unlines . map unwords . mmap (padLeft 8 . cropDigits 2 . show)
 --formatVariance :: MeanMatrix -> [String]
 formatVariance = unlines . map unwords . mmap (padLeft 8 . cropDigits 2 . show)
 
-mmap :: (a -> b) -> [[a]] -> [[b]]
-mmap f = map (map f)
-
 padLeft :: Int -> String -> String
 padLeft n str = replicate (n - length str) ' ' ++ str
 
